@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en" class="antialiased">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kuli · Lease Management — UI Prototype (ADS / Jira style)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  // ---- Atlassian Design System–inspired tokens, expressed for Tailwind ----
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        },
+        colors: {
+          // Brand blue (ADS "B" family, original scale)
+          brand: {
+            50:'#E9F2FF',100:'#CCE0FF',200:'#85B8FF',300:'#579DFF',
+            400:'#388BFF',500:'#0C66E4',600:'#0055CC',700:'#09326C',
+          },
+          // Neutrals (ADS "N" family)
+          ink:       '#172B4D',   // primary text
+          subtle:    '#44546F',   // secondary text
+          muted:     '#626F86',   // tertiary / placeholder
+          faint:     '#8590A2',   // disabled / hint
+          line:      '#DFE1E6',   // default border
+          'line-2':  '#EBECF0',   // subtle border / dividers
+          surface:   '#FFFFFF',
+          sunken:    '#F7F8F9',   // page background
+          hover:     '#F1F2F4',   // row / control hover
+          selected:  '#E9F2FF',   // selected nav / row
+          // Semantic (subtle bg + bold text pairs used by lozenges)
+          success:  { bg:'#DCFCE7', fg:'#216E4E' },
+          warning:  { bg:'#FFF7D6', fg:'#974F0C' },
+          danger:   { bg:'#FFECEB', fg:'#AE2E24' },
+          info:     { bg:'#E9F2FF', fg:'#0055CC' },
+          discovery:{ bg:'#F3F0FF', fg:'#5E4DB2' },
+        },
+        borderRadius: { sm:'3px', DEFAULT:'4px', md:'6px', lg:'8px' },
+        boxShadow: {
+          card:    '0 1px 1px rgba(9,30,66,0.25), 0 0 1px rgba(9,30,66,0.31)',
+          overlay: '0 8px 16px -4px rgba(9,30,66,0.25), 0 0 1px rgba(9,30,66,0.31)',
+          nav:     '0 1px 0 rgba(9,30,66,0.08)',
+        },
+        fontSize: {
+          '11':['11px','16px'], '12':['12px','16px'], '13':['13px','20px'],
+          '14':['14px','20px'], '16':['16px','24px'], '20':['20px','24px'],
+          '24':['24px','28px'], '29':['29px','32px'],
+        },
+      }
+    }
+  }
+</script>
+<style>
+  html,body{font-size:14px}
+  ::selection{background:#B3D4FF}
+  /* focus ring in ADS blue */
+  .focusable:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #4C9AFF}
+  /* subtle scrollbars */
+  *::-webkit-scrollbar{width:10px;height:10px}
+  *::-webkit-scrollbar-thumb{background:#C1C7D0;border-radius:8px;border:2px solid transparent;background-clip:content-box}
+  *::-webkit-scrollbar-thumb:hover{background:#A5ADBA;background-clip:content-box}
+  [x-cloak]{display:none}
+  .slideover{transition:transform .18s ease}
+</style>
+</head>
+<body class="bg-sunken text-ink font-sans">
+
+<!-- =========================== TOP NAVIGATION BAR =========================== -->
+<header class="fixed top-0 inset-x-0 h-14 bg-surface border-b border-line z-40 flex items-center gap-2 px-3">
+  <!-- product mark + name -->
+  <button class="focusable p-2 rounded hover:bg-hover text-subtle md:hidden" onclick="toggleSidebar()" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <a href="#" class="flex items-center gap-2 pl-1 pr-3 shrink-0">
+    <span class="grid place-items-center w-7 h-7 rounded-md bg-brand-500 text-white font-bold text-14">K</span>
+    <span class="font-semibold text-ink hidden sm:block">Kuli</span>
+    <span class="text-12 text-muted hidden lg:block">· Lease Management</span>
+  </a>
+
+  <!-- global search -->
+  <div class="flex-1 max-w-xl mx-auto hidden sm:block">
+    <label class="relative block">
+      <span class="absolute inset-y-0 left-2.5 grid place-items-center text-muted">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      </span>
+      <input type="text" placeholder="Search leases, tenants, invoices…"
+        class="focusable w-full h-9 pl-9 pr-3 rounded bg-sunken border border-line text-13 placeholder:text-muted hover:bg-hover focus:bg-surface focus:border-brand-500" />
+    </label>
+  </div>
+
+  <div class="flex items-center gap-1 ml-auto">
+    <button class="focusable inline-flex items-center gap-1.5 h-8 pl-2.5 pr-3 rounded bg-brand-500 hover:bg-brand-600 text-white text-13 font-medium" onclick="openCreate()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+      <span class="hidden sm:inline">Create</span>
+    </button>
+    <button class="focusable p-2 rounded hover:bg-hover text-subtle relative" aria-label="Notifications">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger-fg ring-2 ring-surface"></span>
+    </button>
+    <button class="focusable p-2 rounded hover:bg-hover text-subtle" aria-label="Help">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 2.5"/><path d="M12 17h.01"/></svg>
+    </button>
+    <button class="focusable ml-1 rounded-full focus-visible:ring-2" aria-label="Account">
+      <span class="grid place-items-center w-7 h-7 rounded-full bg-discovery-fg text-white text-12 font-semibold">AR</span>
+    </button>
+  </div>
+</header>
+
+<!-- =========================== LEFT SIDEBAR =========================== -->
+<aside id="sidebar" class="fixed top-14 bottom-0 left-0 w-60 bg-surface border-r border-line z-30 flex flex-col transition-transform -translate-x-full md:translate-x-0">
+  <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+    <p class="px-3 pt-1 pb-1.5 text-11 font-semibold tracking-wide text-muted uppercase">Council · Land &amp; Property</p>
+    <a href="#" data-view="dashboard" onclick="go('dashboard',event)" class="nav-item group">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      Dashboard
+    </a>
+    <a href="#" data-view="leases" onclick="go('leases',event)" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>
+      Leases
+      <span class="ml-auto text-11 font-semibold text-muted bg-line-2 rounded-full px-1.5 py-0.5">18</span>
+    </a>
+    <a href="#" onclick="go('leases',event)" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+      Tenants
+    </a>
+    <a href="#" onclick="go('leases',event)" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M6 21V7l6-4 6 4v14"/><path d="M9 9h.01M15 9h.01M9 13h.01M15 13h.01M9 17h.01M15 17h.01"/></svg>
+      Properties
+    </a>
+    <div class="my-2 border-t border-line-2"></div>
+    <a href="#" onclick="go('leases',event)" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+      Invoices
+      <span class="ml-auto text-11 font-semibold text-danger-fg bg-danger-bg rounded-full px-1.5 py-0.5">6</span>
+    </a>
+    <a href="#" onclick="go('leases',event)" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      Payments
+    </a>
+    <a href="#" onclick="go('dashboard',event)" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>
+      Reports
+    </a>
+    <div class="my-2 border-t border-line-2"></div>
+    <a href="#" onclick="go('leases',event)" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.9.98V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 14H3.5a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 5 8.6l-.33-.42a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 5.6 1.65 1.65 0 0 0 10 3.5V3.5a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 2.72 1.24l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 20.4 9H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51.99Z"/></svg>
+      Settings
+    </a>
+  </nav>
+  <div class="p-3 border-t border-line-2">
+    <div class="flex items-center gap-2 p-2 rounded hover:bg-hover cursor-pointer">
+      <span class="grid place-items-center w-7 h-7 rounded bg-brand-50 text-brand-600 text-12 font-bold">MC</span>
+      <div class="min-w-0">
+        <p class="text-12 font-medium text-ink truncate">Malé City Council</p>
+        <p class="text-11 text-muted truncate">Revenue Section</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- backdrop for mobile sidebar -->
+<div id="sb-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-ink/30 z-20 hidden md:hidden"></div>
+
+<!-- =========================== MAIN =========================== -->
+<main class="md:pl-60 pt-14 min-h-screen">
+
+  <!-- ========== DASHBOARD VIEW ========== -->
+  <section id="view-dashboard" class="max-w-[1200px] mx-auto px-4 sm:px-6 py-6">
+    <nav class="text-12 text-muted mb-1.5 flex items-center gap-1.5">
+      <span>Council</span><span>/</span><span class="text-subtle">Revenue</span>
+    </nav>
+    <div class="flex items-end justify-between gap-4 mb-5">
+      <div>
+        <h1 class="text-24 font-semibold text-ink">Dashboard</h1>
+        <p class="text-13 text-subtle mt-0.5">Overview of leases, billing and arrears — July 2026</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn-subtle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export</button>
+        <button class="btn-primary" onclick="openCreate()">Create lease</button>
+      </div>
+    </div>
+
+    <!-- stat cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+      <div class="stat">
+        <p class="stat-label">Active leases</p>
+        <p class="stat-value">18</p>
+        <p class="stat-note text-success-fg">▲ 2 this quarter</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Billed this month</p>
+        <p class="stat-value">MVR 42,180</p>
+        <p class="stat-note text-muted">18 invoices issued</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Collected</p>
+        <p class="stat-value">MVR 33,905</p>
+        <p class="stat-note text-muted">80% of billed</p>
+      </div>
+      <div class="stat ring-1 ring-danger-bg">
+        <p class="stat-label">Arrears</p>
+        <p class="stat-value text-danger-fg">MVR 8,275</p>
+        <p class="stat-note text-danger-fg">6 overdue invoices</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Fines outstanding</p>
+        <p class="stat-value">MVR 3,142</p>
+        <p class="stat-note text-muted">accruing daily</p>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-4">
+      <!-- needs attention -->
+      <div class="lg:col-span-2 bg-surface border border-line rounded-md shadow-card">
+        <div class="flex items-center justify-between px-4 h-12 border-b border-line-2">
+          <h2 class="text-14 font-semibold text-ink">Needs attention · overdue</h2>
+          <a href="#" onclick="go('leases',event)" class="text-13 text-brand-600 hover:underline">View all arrears</a>
+        </div>
+        <table class="w-full text-13">
+          <tbody class="divide-y divide-line-2">
+            <tr class="hover:bg-hover cursor-pointer" onclick="openLease('L-2041')">
+              <td class="py-2.5 pl-4 pr-2"><p class="font-medium text-ink">Dhiraagu antenna site</p><p class="text-12 text-muted">AG-1180/2019 · Dhiraagu PLC</p></td>
+              <td class="px-2"><span class="loz loz-danger">Overdue 42d</span></td>
+              <td class="px-2 text-right tabular-nums font-medium">MVR 1,555</td>
+              <td class="pr-4 pl-2 w-10 text-right"><span class="text-muted">›</span></td>
+            </tr>
+            <tr class="hover:bg-hover cursor-pointer" onclick="openLease('L-1990')">
+              <td class="py-2.5 pl-4 pr-2"><p class="font-medium text-ink">Commercial plot B-14</p><p class="text-12 text-muted">AG-0902/2021 · Hathaa Maldives Pvt Ltd</p></td>
+              <td class="px-2"><span class="loz loz-danger">Overdue 18d</span></td>
+              <td class="px-2 text-right tabular-nums font-medium">MVR 2,180</td>
+              <td class="pr-4 pl-2 text-right"><span class="text-muted">›</span></td>
+            </tr>
+            <tr class="hover:bg-hover cursor-pointer" onclick="openLease('L-2103')">
+              <td class="py-2.5 pl-4 pr-2"><p class="font-medium text-ink">Tea-shop plot, Ring Road</p><p class="text-12 text-muted">AG-1204/2022 · Abid Ahmed</p></td>
+              <td class="px-2"><span class="loz loz-warning">Due today</span></td>
+              <td class="px-2 text-right tabular-nums font-medium">MVR 500</td>
+              <td class="pr-4 pl-2 text-right"><span class="text-muted">›</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- upcoming expiries -->
+      <div class="bg-surface border border-line rounded-md shadow-card">
+        <div class="flex items-center px-4 h-12 border-b border-line-2">
+          <h2 class="text-14 font-semibold text-ink">Upcoming expiries</h2>
+        </div>
+        <ul class="divide-y divide-line-2 text-13">
+          <li class="px-4 py-3 flex items-start gap-3">
+            <span class="mt-0.5 grid place-items-center w-8 h-8 rounded bg-warning-bg text-warning-fg shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            </span>
+            <div><p class="font-medium text-ink">Boat shed 7</p><p class="text-12 text-muted">Expires in 68 days · renewal due</p></div>
+          </li>
+          <li class="px-4 py-3 flex items-start gap-3">
+            <span class="mt-0.5 grid place-items-center w-8 h-8 rounded bg-info-bg text-info-fg shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            </span>
+            <div><p class="font-medium text-ink">Ooredoo antenna site</p><p class="text-12 text-muted">Grace period ends in 12 days</p></div>
+          </li>
+          <li class="px-4 py-3 flex items-start gap-3">
+            <span class="mt-0.5 grid place-items-center w-8 h-8 rounded bg-info-bg text-info-fg shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            </span>
+            <div><p class="font-medium text-ink">Agricultural plot A-3</p><p class="text-12 text-muted">Expires in 90 days</p></div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== LEASES VIEW ========== -->
+  <section id="view-leases" class="hidden max-w-[1200px] mx-auto px-4 sm:px-6 py-6">
+    <nav class="text-12 text-muted mb-1.5 flex items-center gap-1.5"><span>Council</span><span>/</span><span class="text-subtle">Leases</span></nav>
+    <div class="flex items-end justify-between gap-4 mb-4">
+      <h1 class="text-24 font-semibold text-ink">Leases</h1>
+      <div class="flex items-center gap-2">
+        <button class="btn-subtle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export</button>
+        <button class="btn-primary" onclick="openCreate()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Create lease</button>
+      </div>
+    </div>
+
+    <!-- toolbar / filter bar -->
+    <div class="flex flex-wrap items-center gap-2 mb-3">
+      <label class="relative">
+        <span class="absolute inset-y-0 left-2.5 grid place-items-center text-muted"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+        <input placeholder="Filter leases" class="focusable h-8 w-56 pl-8 pr-3 rounded bg-surface border border-line text-13 placeholder:text-muted focus:border-brand-500" />
+      </label>
+      <button class="chip">Status <span class="text-muted">▾</span></button>
+      <button class="chip">Tenant type <span class="text-muted">▾</span></button>
+      <button class="chip">Property type <span class="text-muted">▾</span></button>
+      <div class="ml-auto flex items-center gap-1 text-12 text-muted">
+        <span>18 leases</span>
+      </div>
+    </div>
+
+    <!-- filter tabs -->
+    <div class="flex items-center gap-1 mb-2 border-b border-line-2">
+      <button class="tab tab-active" data-filter="all" onclick="filterLeases('all',event)">All</button>
+      <button class="tab" data-filter="active" onclick="filterLeases('active',event)">Active</button>
+      <button class="tab" data-filter="overdue" onclick="filterLeases('overdue',event)">Overdue</button>
+      <button class="tab" data-filter="expiring" onclick="filterLeases('expiring',event)">Expiring soon</button>
+    </div>
+
+    <!-- table -->
+    <div class="bg-surface border border-line rounded-md shadow-card overflow-hidden">
+      <div class="overflow-x-auto">
+      <table class="w-full text-13 min-w-[820px]">
+        <thead>
+          <tr class="text-11 uppercase tracking-wide text-muted bg-sunken border-b border-line">
+            <th class="th text-left">Property</th>
+            <th class="th text-left">Tenant</th>
+            <th class="th text-left">Type</th>
+            <th class="th text-left">Status</th>
+            <th class="th text-right">Monthly rent</th>
+            <th class="th text-left">Next due</th>
+            <th class="th w-10"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-line-2">
+          <tr class="lrow hover:bg-hover cursor-pointer" data-status="overdue" onclick="openLease('L-2041')">
+            <td class="td"><p class="font-medium text-ink">Dhiraagu antenna site</p><p class="text-12 text-muted">Land AG-1180/2019 · 2,000 ft²</p></td>
+            <td class="td"><div class="flex items-center gap-2"><span class="ava bg-discovery-fg">DP</span><span>Dhiraagu PLC</span></div></td>
+            <td class="td"><span class="loz loz-discovery">Organisation</span></td>
+            <td class="td"><span class="loz loz-danger">Overdue 42d</span></td>
+            <td class="td text-right tabular-nums">MVR 1,060</td>
+            <td class="td text-subtle">10 Jun 2026</td>
+            <td class="td text-right"><button class="icon-btn" onclick="event.stopPropagation()">⋯</button></td>
+          </tr>
+          <tr class="lrow hover:bg-hover cursor-pointer" data-status="active" onclick="openLease('L-2102')">
+            <td class="td"><p class="font-medium text-ink">Ooredoo antenna site</p><p class="text-12 text-muted">Land AG-1181/2020 · 1,800 ft²</p></td>
+            <td class="td"><div class="flex items-center gap-2"><span class="ava bg-brand-500">OM</span><span>Ooredoo Maldives</span></div></td>
+            <td class="td"><span class="loz loz-discovery">Organisation</span></td>
+            <td class="td"><span class="loz loz-success">Active</span></td>
+            <td class="td text-right tabular-nums">MVR 954</td>
+            <td class="td text-subtle">10 Jul 2026</td>
+            <td class="td text-right"><button class="icon-btn" onclick="event.stopPropagation()">⋯</button></td>
+          </tr>
+          <tr class="lrow hover:bg-hover cursor-pointer" data-status="overdue" onclick="openLease('L-1990')">
+            <td class="td"><p class="font-medium text-ink">Commercial plot B-14</p><p class="text-12 text-muted">Land AG-0902/2021 · 3,500 ft²</p></td>
+            <td class="td"><div class="flex items-center gap-2"><span class="ava bg-success-fg">HM</span><span>Hathaa Maldives Pvt Ltd</span></div></td>
+            <td class="td"><span class="loz loz-discovery">Organisation</span></td>
+            <td class="td"><span class="loz loz-danger">Overdue 18d</span></td>
+            <td class="td text-right tabular-nums">MVR 1,855</td>
+            <td class="td text-subtle">10 Jun 2026</td>
+            <td class="td text-right"><button class="icon-btn" onclick="event.stopPropagation()">⋯</button></td>
+          </tr>
+          <tr class="lrow hover:bg-hover cursor-pointer" data-status="active" onclick="openLease('L-2103')">
+            <td class="td"><p class="font-medium text-ink">Tea-shop plot, Ring Road</p><p class="text-12 text-muted">Land AG-1204/2022 · 600 ft²</p></td>
+            <td class="td"><div class="flex items-center gap-2"><span class="ava bg-warning-fg">AA</span><span>Abid Ahmed</span></div></td>
+            <td class="td"><span class="loz loz-info">Individual</span></td>
+            <td class="td"><span class="loz loz-success">Active</span></td>
+            <td class="td text-right tabular-nums">MVR 500</td>
+            <td class="td text-subtle">10 Jul 2026</td>
+            <td class="td text-right"><button class="icon-btn" onclick="event.stopPropagation()">⋯</button></td>
+          </tr>
+          <tr class="lrow hover:bg-hover cursor-pointer" data-status="expiring" onclick="openLease('L-1877')">
+            <td class="td"><p class="font-medium text-ink">Boat shed 7</p><p class="text-12 text-muted">Land AG-0770/2016 · 900 ft²</p></td>
+            <td class="td"><div class="flex items-center gap-2"><span class="ava bg-muted">IM</span><span>Ibrahim Manik</span></div></td>
+            <td class="td"><span class="loz loz-info">Individual</span></td>
+            <td class="td"><span class="loz loz-warning">Expires 68d</span></td>
+            <td class="td text-right tabular-nums">MVR 750</td>
+            <td class="td text-subtle">10 Jul 2026</td>
+            <td class="td text-right"><button class="icon-btn" onclick="event.stopPropagation()">⋯</button></td>
+          </tr>
+          <tr class="lrow hover:bg-hover cursor-pointer" data-status="active" onclick="openLease('L-2088')">
+            <td class="td"><p class="font-medium text-ink">Agricultural plot A-3</p><p class="text-12 text-muted">Land AG-1102/2018 · 12,000 ft²</p></td>
+            <td class="td"><div class="flex items-center gap-2"><span class="ava bg-brand-600">FN</span><span>Fathimath Naseer</span></div></td>
+            <td class="td"><span class="loz loz-info">Individual</span></td>
+            <td class="td"><span class="loz loz-success">Active</span></td>
+            <td class="td text-right tabular-nums">MVR 600</td>
+            <td class="td text-subtle">10 Jul 2026</td>
+            <td class="td text-right"><button class="icon-btn" onclick="event.stopPropagation()">⋯</button></td>
+          </tr>
+          <tr class="lrow hover:bg-hover cursor-pointer" data-status="active" onclick="openLease('L-1720')">
+            <td class="td"><p class="font-medium text-ink">Café plot, Waterfront</p><p class="text-12 text-muted">Land AG-0540/2015 · 1,200 ft²</p></td>
+            <td class="td"><div class="flex items-center gap-2"><span class="ava bg-discovery-fg">OH</span><span>Odiharuge Holdings</span></div></td>
+            <td class="td"><span class="loz loz-discovery">Organisation</span></td>
+            <td class="td"><span class="loz loz-neutral">Draft</span></td>
+            <td class="td text-right tabular-nums">MVR 2,400</td>
+            <td class="td text-subtle">—</td>
+            <td class="td text-right"><button class="icon-btn" onclick="event.stopPropagation()">⋯</button></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <!-- pagination -->
+      <div class="flex items-center justify-between px-4 h-12 border-t border-line-2 text-12 text-muted">
+        <span>Showing 1–7 of 18</span>
+        <div class="flex items-center gap-1">
+          <button class="pg" disabled>‹</button>
+          <button class="pg pg-active">1</button>
+          <button class="pg">2</button>
+          <button class="pg">3</button>
+          <button class="pg">›</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- =========================== SLIDE-OVER: LEASE DETAIL =========================== -->
+<div id="slideover-backdrop" class="fixed inset-0 bg-ink/30 z-40 hidden" onclick="closeLease()"></div>
+<div id="slideover" class="slideover fixed top-0 right-0 bottom-0 w-full max-w-[560px] bg-surface z-50 shadow-overlay translate-x-full flex flex-col">
+  <!-- header -->
+  <div class="flex items-start gap-3 px-5 py-4 border-b border-line-2">
+    <div class="min-w-0 flex-1">
+      <div class="flex items-center gap-2 text-12 text-muted mb-1">
+        <span id="so-id">L-2041</span><span>·</span><span id="so-agreement">AG-1180/2019</span>
+      </div>
+      <h2 id="so-title" class="text-20 font-semibold text-ink truncate">Dhiraagu antenna site</h2>
+    </div>
+    <button class="icon-btn" onclick="closeLease()" aria-label="Close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <!-- action bar -->
+  <div class="flex items-center gap-2 px-5 py-2.5 border-b border-line-2 bg-sunken">
+    <button class="btn-primary" onclick="openPayment()">Record payment</button>
+    <button class="btn-subtle">Send reminder</button>
+    <button class="btn-subtle ml-auto">Edit</button>
+  </div>
+  <!-- body -->
+  <div class="flex-1 overflow-y-auto">
+    <!-- balance banner -->
+    <div id="so-banner" class="mx-5 mt-4 rounded-md border border-danger-bg bg-danger-bg/40 px-4 py-3 flex items-center justify-between">
+      <div>
+        <p class="text-12 font-semibold uppercase tracking-wide text-danger-fg">Amount due</p>
+        <p class="text-24 font-semibold text-danger-fg tabular-nums">MVR 1,555.00</p>
+      </div>
+      <span class="loz loz-danger">Overdue 42 days</span>
+    </div>
+
+    <!-- fields grid -->
+    <div class="px-5 py-4 grid grid-cols-2 gap-x-6 gap-y-4">
+      <div><p class="fl">Status</p><span class="loz loz-danger mt-1 inline-block">Active · overdue</span></div>
+      <div><p class="fl">Tenant</p><p class="fv flex items-center gap-2"><span class="ava bg-discovery-fg">DP</span>Dhiraagu PLC</p></div>
+      <div><p class="fl">Tenant type</p><p class="fv">Organisation · C-250/2002</p></div>
+      <div><p class="fl">Property</p><p class="fv">Antenna site · 2,000 ft²</p></div>
+      <div><p class="fl">Rent basis</p><p class="fv">53 laari/ft² · MVR 1,060/mo</p></div>
+      <div><p class="fl">Due day</p><p class="fv">10th of each month</p></div>
+      <div><p class="fl">Lease start</p><p class="fv">01 Jan 2019</p></div>
+      <div><p class="fl">Expiry</p><p class="fv">31 Dec 2028</p></div>
+    </div>
+
+    <!-- fine rule card -->
+    <div class="mx-5 mb-4 rounded-md border border-line bg-surface">
+      <div class="px-4 h-10 flex items-center justify-between border-b border-line-2">
+        <p class="text-13 font-semibold text-ink">Fine rule</p>
+        <span class="loz loz-info">Percentage / day</span>
+      </div>
+      <div class="px-4 py-3 text-13 text-subtle space-y-1.5">
+        <div class="flex justify-between"><span>Method</span><span class="text-ink">0.5% of rent, per day late</span></div>
+        <div class="flex justify-between"><span>Base</span><span class="text-ink">Rent only</span></div>
+        <div class="flex justify-between"><span>Allowance</span><span class="text-ink">0 days</span></div>
+        <div class="mt-2 pt-2 border-t border-line-2 flex justify-between">
+          <span>Accrued fine (42 days × MVR 2.50)</span><span class="font-semibold text-danger-fg tabular-nums">MVR 1,055.00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- invoice schedule -->
+    <div class="px-5 pb-2">
+      <p class="text-13 font-semibold text-ink mb-2">Recent invoices</p>
+      <div class="rounded-md border border-line overflow-hidden">
+        <table class="w-full text-13">
+          <tbody class="divide-y divide-line-2">
+            <tr><td class="px-3 py-2">Jun 2026</td><td class="px-3 py-2 text-right tabular-nums">MVR 1,060</td><td class="px-3 py-2"><span class="loz loz-danger">Overdue</span></td></tr>
+            <tr><td class="px-3 py-2">May 2026</td><td class="px-3 py-2 text-right tabular-nums">MVR 1,060</td><td class="px-3 py-2"><span class="loz loz-success">Paid</span></td></tr>
+            <tr><td class="px-3 py-2">Apr 2026</td><td class="px-3 py-2 text-right tabular-nums">MVR 1,060</td><td class="px-3 py-2"><span class="loz loz-success">Paid</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- activity -->
+    <div class="px-5 py-4">
+      <p class="text-13 font-semibold text-ink mb-3">Activity</p>
+      <ol class="space-y-3 text-13">
+        <li class="flex gap-3"><span class="ava bg-brand-500 shrink-0">AR</span><div><p><span class="font-medium">Aishath R.</span> <span class="text-muted">sent an overdue reminder (SMS)</span></p><p class="text-12 text-muted">Today · 09:14</p></div></li>
+        <li class="flex gap-3"><span class="ava bg-success-fg shrink-0">SY</span><div><p><span class="font-medium">System</span> <span class="text-muted">issued invoice 2026/118 for June</span></p><p class="text-12 text-muted">01 Jun · 00:05</p></div></li>
+        <li class="flex gap-3"><span class="ava bg-warning-fg shrink-0">MF</span><div><p><span class="font-medium">Mufeed A.</span> <span class="text-muted">recorded payment for May · receipt 2026/097</span></p><p class="text-12 text-muted">08 May · 11:20</p></div></li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- =========================== MODAL: RECORD PAYMENT =========================== -->
+<div id="modal-backdrop" class="fixed inset-0 bg-ink/40 z-[60] hidden grid place-items-start justify-center p-4 sm:p-8 overflow-y-auto" onclick="if(event.target===this)closePayment()">
+  <div class="w-full max-w-[480px] bg-surface rounded-lg shadow-overlay mt-10">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-line-2">
+      <h3 class="text-16 font-semibold text-ink">Record payment</h3>
+      <button class="icon-btn" onclick="closePayment()" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="px-5 py-4 space-y-4">
+      <p class="text-13 text-subtle">Dhiraagu antenna site · invoice <span class="font-medium text-ink">2026/118</span> (June)</p>
+      <div>
+        <label class="fl-req">Amount received (MVR)</label>
+        <input value="1,555.00" class="focusable input mt-1 tabular-nums" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="fl-req">Payment date</label>
+          <input value="2026-07-09" type="date" class="focusable input mt-1" />
+        </div>
+        <div>
+          <label class="fl-req">Method</label>
+          <select class="focusable input mt-1"><option>Bank transfer</option><option>Cash</option><option>Cheque</option></select>
+        </div>
+      </div>
+      <div>
+        <label class="fl">Reference</label>
+        <input placeholder="e.g. BML txn 88421" class="focusable input mt-1" />
+      </div>
+      <!-- computed breakdown -->
+      <div class="rounded-md bg-sunken border border-line-2 p-3 text-13 space-y-1.5">
+        <div class="flex justify-between"><span class="text-subtle">Rent (June)</span><span class="tabular-nums">MVR 500.00</span></div>
+        <div class="flex justify-between"><span class="text-subtle">Fine · 422 days × MVR 2.50 <span class="text-11 text-muted">(0.5%/day)</span></span><span class="tabular-nums">MVR 1,055.00</span></div>
+        <div class="flex justify-between pt-1.5 mt-1.5 border-t border-line font-semibold"><span>Total allocated</span><span class="tabular-nums">MVR 1,555.00</span></div>
+        <p class="text-11 text-muted pt-1">Allocation: rent first, then fine. Fine computed on payment date.</p>
+      </div>
+    </div>
+    <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-line-2 bg-sunken rounded-b-lg">
+      <button class="btn-subtle" onclick="closePayment()">Cancel</button>
+      <button class="btn-primary" onclick="confirmPayment()">Record payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================== CREATE (simple flag/hint) =========================== -->
+<div id="create-hint" class="fixed inset-0 bg-ink/40 z-[60] hidden grid place-items-start justify-center p-4 sm:p-8" onclick="if(event.target===this)closeCreate()">
+  <div class="w-full max-w-[420px] bg-surface rounded-lg shadow-overlay mt-16 p-5">
+    <h3 class="text-16 font-semibold text-ink mb-1">Create</h3>
+    <p class="text-13 text-subtle mb-4">Start a new record. In the build, each opens a guided form.</p>
+    <div class="space-y-1.5">
+      <button class="menu-row" onclick="closeCreate()"><span class="grid place-items-center w-8 h-8 rounded bg-brand-50 text-brand-600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span><div class="text-left"><p class="text-13 font-medium">New lease</p><p class="text-12 text-muted">Link a property to a tenant</p></div></button>
+      <button class="menu-row" onclick="closeCreate()"><span class="grid place-items-center w-8 h-8 rounded bg-discovery-bg text-discovery-fg"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/></svg></span><div class="text-left"><p class="text-13 font-medium">New tenant</p><p class="text-12 text-muted">Individual or organisation</p></div></button>
+      <button class="menu-row" onclick="closeCreate()"><span class="grid place-items-center w-8 h-8 rounded bg-success-bg text-success-fg"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M6 21V7l6-4 6 4v14"/></svg></span><div class="text-left"><p class="text-13 font-medium">New property</p><p class="text-12 text-muted">Register a land parcel</p></div></button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================== TOAST / FLAG =========================== -->
+<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] hidden">
+  <div class="flex items-center gap-3 bg-ink text-white rounded-md shadow-overlay pl-3 pr-4 py-2.5 text-13">
+    <span class="grid place-items-center w-5 h-5 rounded-full bg-success-fg"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>
+    <span id="toast-msg">Payment recorded · receipt 2026/121 issued</span>
+  </div>
+</div>
+
+<!-- =========================== COMPONENT STYLES =========================== -->
+<style type="text/tailwindcss">
+  @layer components{
+    .fr{ @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1; }
+    .btn-primary{ @apply fr inline-flex items-center gap-1.5 h-8 px-3 rounded bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white text-13 font-medium; }
+    .btn-subtle{ @apply fr inline-flex items-center gap-1.5 h-8 px-3 rounded bg-transparent hover:bg-hover text-subtle text-13 font-medium border border-transparent; }
+    .icon-btn{ @apply fr grid place-items-center w-8 h-8 rounded hover:bg-hover text-muted; }
+    .nav-item{ @apply fr flex items-center gap-2.5 h-9 px-3 rounded text-13 font-medium text-subtle hover:bg-hover; }
+    .nav-item svg{ @apply w-[18px] h-[18px] text-muted; }
+    .nav-item.active{ @apply bg-selected text-brand-600; }
+    .nav-item.active svg{ @apply text-brand-600; }
+    .stat{ @apply bg-surface border border-line rounded-md shadow-card px-4 py-3.5; }
+    .stat-label{ @apply text-12 text-muted; }
+    .stat-value{ @apply text-20 font-semibold text-ink mt-1 tabular-nums; }
+    .stat-note{ @apply text-11 mt-1.5; }
+    .th{ @apply px-3 py-2.5 font-semibold; }
+    .td{ @apply px-3 py-2.5 align-middle; }
+    .loz{ @apply inline-flex items-center rounded-sm px-1.5 h-5 text-11 font-bold uppercase tracking-wide; }
+    .loz-neutral{ @apply bg-line-2 text-subtle; }
+    .loz-success{ @apply bg-success-bg text-success-fg; }
+    .loz-warning{ @apply bg-warning-bg text-warning-fg; }
+    .loz-danger{ @apply bg-danger-bg text-danger-fg; }
+    .loz-info{ @apply bg-info-bg text-info-fg; }
+    .loz-discovery{ @apply bg-discovery-bg text-discovery-fg; }
+    .ava{ @apply grid place-items-center w-6 h-6 rounded-full text-white text-11 font-semibold shrink-0; }
+    .chip{ @apply fr inline-flex items-center gap-1.5 h-8 px-2.5 rounded bg-surface border border-line text-13 text-subtle hover:bg-hover; }
+    .tab{ @apply fr h-9 px-3 text-13 font-medium text-subtle border-b-2 border-transparent hover:text-ink -mb-px; }
+    .tab-active{ @apply text-brand-600 border-brand-500; }
+    .pg{ @apply fr w-7 h-7 grid place-items-center rounded text-12 text-subtle hover:bg-hover disabled:opacity-40; }
+    .pg-active{ @apply bg-selected text-brand-600 font-semibold; }
+    .fl{ @apply text-11 font-semibold uppercase tracking-wide text-muted; }
+    .fl-req{ @apply text-12 font-semibold text-subtle; }
+    .fv{ @apply text-13 text-ink mt-1; }
+    .input{ @apply fr w-full h-9 px-3 rounded bg-surface border border-line text-13 focus:border-brand-500; }
+    .menu-row{ @apply fr w-full flex items-center gap-3 p-2 rounded hover:bg-hover; }
+  }
+</style>
+
+<script>
+  // ---------- view switching ----------
+  function go(view, e){ if(e) e.preventDefault();
+    document.getElementById('view-dashboard').classList.toggle('hidden', view!=='dashboard');
+    document.getElementById('view-leases').classList.toggle('hidden', view!=='leases');
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    const active=[...document.querySelectorAll('.nav-item')].find(n=>n.dataset.view===view);
+    if(active) active.classList.add('active');
+    window.scrollTo(0,0);
+    if(window.innerWidth<768) closeSidebar();
+  }
+  // ---------- sidebar (mobile) ----------
+  function toggleSidebar(){ const sb=document.getElementById('sidebar'), bd=document.getElementById('sb-backdrop');
+    const open=sb.classList.contains('-translate-x-full');
+    sb.classList.toggle('-translate-x-full', !open); bd.classList.toggle('hidden', !open);
+  }
+  function closeSidebar(){ document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('sb-backdrop').classList.add('hidden'); }
+  // ---------- lease filter ----------
+  function filterLeases(f, e){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('tab-active'));
+    e.currentTarget.classList.add('tab-active');
+    document.querySelectorAll('.lrow').forEach(r=>{
+      r.style.display = (f==='all'|| r.dataset.status===f) ? '' : 'none';
+    });
+  }
+  // ---------- slide-over ----------
+  const leaseData={
+    'L-2041':{t:'Dhiraagu antenna site',a:'AG-1180/2019'},
+    'L-2102':{t:'Ooredoo antenna site',a:'AG-1181/2020'},
+    'L-1990':{t:'Commercial plot B-14',a:'AG-0902/2021'},
+    'L-2103':{t:'Tea-shop plot, Ring Road',a:'AG-1204/2022'},
+    'L-1877':{t:'Boat shed 7',a:'AG-0770/2016'},
+    'L-2088':{t:'Agricultural plot A-3',a:'AG-1102/2018'},
+    'L-1720':{t:'Café plot, Waterfront',a:'AG-0540/2015'},
+  };
+  function openLease(id){ const d=leaseData[id]||leaseData['L-2041'];
+    document.getElementById('so-id').textContent=id;
+    document.getElementById('so-title').textContent=d.t;
+    document.getElementById('so-agreement').textContent=d.a;
+    document.getElementById('slideover').classList.remove('translate-x-full');
+    document.getElementById('slideover-backdrop').classList.remove('hidden');
+  }
+  function closeLease(){ document.getElementById('slideover').classList.add('translate-x-full'); document.getElementById('slideover-backdrop').classList.add('hidden'); }
+  // ---------- payment modal ----------
+  function openPayment(){ document.getElementById('modal-backdrop').classList.remove('hidden'); document.getElementById('modal-backdrop').classList.add('grid'); }
+  function closePayment(){ document.getElementById('modal-backdrop').classList.add('hidden'); }
+  function confirmPayment(){ closePayment(); showToast('Payment recorded · receipt 2026/121 issued'); }
+  // ---------- create ----------
+  function openCreate(){ document.getElementById('create-hint').classList.remove('hidden'); document.getElementById('create-hint').classList.add('grid'); }
+  function closeCreate(){ document.getElementById('create-hint').classList.add('hidden'); }
+  // ---------- toast ----------
+  let toastTimer;
+  function showToast(msg){ const t=document.getElementById('toast'); document.getElementById('toast-msg').textContent=msg;
+    t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),3200);
+  }
+  // ---------- keyboard ----------
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeLease(); closePayment(); closeCreate(); } });
+  // init
+  go('dashboard');
+</script>
+</body>
+</html>
