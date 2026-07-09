@@ -2,8 +2,55 @@
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
 
+/*
+ | Design tokens — Council Land & Property Lease Management System.
+ | Original token set in the Atlassian Design System *style* (see docs/UI_DESIGN_PRD.md §3, §9.1).
+ | Tokens are the single source of truth; do not hardcode colours/radii/shadows in markup.
+ */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+    /* Brand (blue) — primary actions, links, selected state. */
+    --color-brand-50: #e9f2ff;
+    --color-brand-100: #cce0ff;
+    --color-brand-300: #579dff;
+    --color-brand-500: #0c66e4;
+    --color-brand-600: #0055cc;
+    --color-brand-700: #09326c;
+
+    /* Neutrals — ink & surfaces. */
+    --color-ink: #172b4d;
+    --color-subtle: #44546f;
+    --color-muted: #626f86;
+    --color-faint: #8590a2;
+    --color-line: #dfe1e6;
+    --color-line-2: #ebecf0;
+    --color-surface: #ffffff;
+    --color-sunken: #f7f8f9;
+    --color-hover: #f1f2f4;
+    --color-selected: #e9f2ff;
+
+    /* Semantic — lozenge background/foreground pairs & feedback. */
+    --color-success-bg: #dcfce7;
+    --color-success-fg: #216e4e;
+    --color-warning-bg: #fff7d6;
+    --color-warning-fg: #974f0c;
+    --color-danger-bg: #ffeceb;
+    --color-danger-fg: #ae2e24;
+    --color-info-bg: #e9f2ff;
+    --color-info-fg: #0055cc;
+    --color-discovery-bg: #f3f0ff;
+    --color-discovery-fg: #5e4db2;
+
+    /* Radius. */
+    --radius-sm: 3px;
+    --radius-DEFAULT: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+
+    /* Elevation. */
+    --shadow-card: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+    --shadow-overlay: 0 8px 16px -4px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
 }

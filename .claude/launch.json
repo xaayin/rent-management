@@ -1,0 +1,12 @@
+{
+    "version": "0.0.1",
+    "configurations": [
+        {
+            "name": "rent-management",
+            "runtimeExecutable": "php",
+            "runtimeArgs": ["artisan", "serve", "--port=8010"],
+            "port": 8010,
+            "autoPort": false
+        }
+    ]
+}
