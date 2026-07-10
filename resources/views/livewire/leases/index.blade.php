@@ -12,12 +12,11 @@
         @endcan
     </div>
 
-    {{-- ============ Create / edit form (full form for long entry) ============ --}}
+    {{-- ============ Create / edit modal (design PRD §5.8) ============ --}}
     @if ($showForm)
-        <div class="mb-6 rounded-md border border-line bg-surface p-6 shadow-card">
-            <h2 class="mb-4 text-16 font-semibold text-ink">{{ $editingId ? 'Edit lease' : 'Add a lease' }}</h2>
-
-            <form wire:submit="save" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <x-modal :title="$editingId ? 'Edit lease' : 'Add a lease'" close="cancel" :wide="true">
+            <form wire:submit="save">
+                <div class="grid grid-cols-1 gap-4 px-5 py-4 sm:grid-cols-2">
                 <div>
                     <label class="fl">Agreement number</label>
                     <input type="text" wire:model="agreement_number" class="input mt-1">
@@ -168,12 +167,13 @@
                     @endif
                 </div>
 
-                <div class="flex gap-2 sm:col-span-2">
-                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+                <div class="flex items-center justify-end gap-2 rounded-b-lg border-t border-line-2 bg-sunken px-5 py-3.5">
                     <button type="button" wire:click="cancel" class="btn-subtle">Cancel</button>
+                    <button type="submit" class="btn-primary">{{ $editingId ? 'Save changes' : 'Create lease' }}</button>
                 </div>
             </form>
-        </div>
+        </x-modal>
     @endif
 
     {{-- ============ Toolbar: filter + chips (design PRD §5.5) ============ --}}

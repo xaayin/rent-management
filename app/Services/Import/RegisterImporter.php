@@ -41,9 +41,19 @@ class RegisterImporter
 {
     private const array DATE_FORMATS = ['Y-m-d', 'd/m/Y', 'd-m-Y'];
 
+    public function __construct(private readonly WorkbookRegisterReader $workbook) {}
+
     public function import(string $path, bool $dryRun = false): ImportReport
     {
-        $rows = $this->parse($path);
+        if (! is_readable($path)) {
+            throw new InvalidArgumentException("Cannot read import file [{$path}].");
+        }
+
+        // The council's own workbook imports directly; CSV remains for
+        // cleaned exports.
+        $rows = strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'xlsx'
+            ? $this->workbook->rows($path)
+            : $this->parse($path);
 
         $report = new ImportReport;
         $report->dryRun = $dryRun;
@@ -64,6 +74,10 @@ class RegisterImporter
                     }
 
                     $report->monthlyRentLaari += $pending['rent_laari'];
+
+                    foreach ([...$pending['warnings'], ...$this->rowWarnings($row)] as $warning) {
+                        $report->warn($line, $this->reference($row), $warning);
+                    }
                 } catch (ImportRowException $e) {
                     $report->reject($line, $this->reference($row), $e->reasons);
                 } catch (ParcelAlreadyLeasedException) {
@@ -85,7 +99,7 @@ class RegisterImporter
 
     /**
      * @param  array<string, string>  $row
-     * @return array{counts: list<array{0: string, 1: bool}>, rent_laari: int}
+     * @return array{counts: list<array{0: string, 1: bool}>, rent_laari: int, warnings: list<string>}
      */
     private function importRow(array $row): array
     {
@@ -96,6 +110,7 @@ class RegisterImporter
         }
 
         $counts = [];
+        $warnings = [];
 
         $startDate = $this->date($row['start_date']);
         $rentStart = $row['rent_start_date'] !== '' ? $this->date($row['rent_start_date']) : $startDate;
@@ -105,8 +120,28 @@ class RegisterImporter
             ? $this->date($row['expiry_date'])
             : $startDate->addYears($duration);
 
+        $landNumber = trim($row['land_number']);
+        $agreementNumber = trim($row['agreement_number']);
+        $status = $row['status'] !== '' ? $row['status'] : LeaseStatus::Active->value;
+
+        // Workbook rows may share a synthesised parcel identity even though
+        // they are physically distinct plots. When both would be active, split
+        // into a separate parcel instead of tripping the FR-PRP-02 guard.
+        if (($row['parcel_split_ok'] ?? '') === '1' && $status === LeaseStatus::Active->value) {
+            $existingParcel = Property::query()->where('land_number', $landNumber)->first();
+
+            $clash = $existingParcel?->activeLeases()
+                ->where('agreement_number', '!=', $agreementNumber)
+                ->exists() ?? false;
+
+            if ($clash) {
+                $landNumber .= ' · '.$agreementNumber;
+                $warnings[] = 'Shares a name/size with another active lease — imported as a separate parcel; assign real land numbers in the app.';
+            }
+        }
+
         $property = Property::updateOrCreate(
-            ['land_number' => trim($row['land_number'])],
+            ['land_number' => $landNumber],
             [
                 'name' => trim($row['property_name']),
                 'size_sqft' => (int) $row['size_sqft'],
@@ -143,8 +178,11 @@ class RegisterImporter
                 'csr_amount_laari' => $row['csr_type'] === 'fixed_annual' && $row['csr_amount_mvr'] !== ''
                     ? Money::fromRufiyaa($row['csr_amount_mvr'])->laari
                     : null,
+                'csr_percent_bps' => $row['csr_type'] === 'percent_revenue' && ($row['csr_percent'] ?? '') !== ''
+                    ? (int) round(((float) $row['csr_percent']) * 100)
+                    : null,
                 'csr_month' => $row['csr_month'] !== '' ? (int) $row['csr_month'] : null,
-                'status' => $row['status'] !== '' ? $row['status'] : LeaseStatus::Active->value,
+                'status' => $status,
                 'notes' => $row['notes'] !== '' ? $row['notes'] : null,
             ],
         );
@@ -154,7 +192,7 @@ class RegisterImporter
             $counts[] = ['fine_rules', true];
         }
 
-        return ['counts' => $counts, 'rent_laari' => $lease->monthlyRent()->laari];
+        return ['counts' => $counts, 'rent_laari' => $lease->monthlyRent()->laari, 'warnings' => $warnings];
     }
 
     /**
@@ -164,22 +202,25 @@ class RegisterImporter
     {
         $registry = trim($row['registry_no']);
 
-        // Individuals carry a national ID like A118342; anything else is an
-        // organisation registration such as C-250/2002 (PRD §1.2).
-        $isIndividual = preg_match('/^A\d+$/i', $registry) === 1;
+        // Individuals carry a national ID like A118342; a C-… registration is
+        // an organisation (PRD §1.2). Rows without any registry number — a
+        // real gap in the register — are treated as individuals keyed by
+        // name + phone so re-runs still match the same person.
+        $isIndividual = $registry === '' || preg_match('/^A\d+$/i', $registry) === 1;
 
-        $tenant = Tenant::updateOrCreate(
-            $isIndividual ? ['national_id' => $registry] : ['company_reg_no' => $registry],
-            [
-                'type' => ($isIndividual ? TenantType::Individual : TenantType::Organisation)->value,
-                'name' => trim($row['tenant_name']),
-                'contact_person' => $isIndividual ? null : ($row['contact_person'] !== '' ? $row['contact_person'] : null),
-                'mobile' => trim($row['mobile']),
-                'email' => $row['email'] !== '' ? trim($row['email']) : null,
-            ],
-        );
+        $key = match (true) {
+            $registry !== '' && $isIndividual => ['national_id' => $registry],
+            $registry !== '' => ['company_reg_no' => $registry],
+            default => ['name' => trim($row['tenant_name']), 'mobile' => trim($row['mobile'])],
+        };
 
-        return $tenant;
+        return Tenant::updateOrCreate($key, [
+            'type' => ($isIndividual ? TenantType::Individual : TenantType::Organisation)->value,
+            'name' => trim($row['tenant_name']),
+            'contact_person' => $isIndividual ? null : ($row['contact_person'] !== '' ? $row['contact_person'] : null),
+            'mobile' => trim($row['mobile']),
+            'email' => $row['email'] !== '' ? trim($row['email']) : null,
+        ]);
     }
 
     /**
@@ -222,7 +263,9 @@ class RegisterImporter
     {
         $reasons = [];
 
-        foreach (['property_name', 'land_number', 'size_sqft', 'tenant_name', 'registry_no', 'mobile', 'agreement_number', 'start_date', 'duration_years', 'rent_basis'] as $field) {
+        // Registry number and mobile are real gaps in the current workbook —
+        // they import with warnings rather than rejections (see rowWarnings).
+        foreach (['property_name', 'land_number', 'size_sqft', 'tenant_name', 'agreement_number', 'start_date', 'duration_years', 'rent_basis'] as $field) {
             if (trim($row[$field]) === '') {
                 $reasons[] = "{$field} is required";
             }
@@ -268,6 +311,32 @@ class RegisterImporter
     }
 
     /**
+     * Data-quality gaps that import fine but need cleaning in the app
+     * afterwards.
+     *
+     * @param  array<string, string>  $row
+     * @return list<string>
+     */
+    private function rowWarnings(array $row): array
+    {
+        $warnings = [];
+
+        if (trim($row['mobile']) === '') {
+            $warnings[] = 'No mobile number — SMS reminders are disabled for this tenant until one is added.';
+        }
+
+        if (trim($row['registry_no']) === '') {
+            $warnings[] = 'No registry number — tenant imported as an individual without a national ID.';
+        }
+
+        if ($row['csr_type'] === 'percent_revenue') {
+            $warnings[] = 'CSR is a percentage of revenue — declared revenue must be recorded before it can be billed.';
+        }
+
+        return $warnings;
+    }
+
+    /**
      * @return array<int, array<string, string>> rows keyed by 1-based file line
      */
     private function parse(string $path): array
@@ -305,7 +374,7 @@ class RegisterImporter
             }
 
             // Every known column exists, present or not.
-            foreach (['property_name', 'land_number', 'size_sqft', 'usage_type', 'tenant_name', 'registry_no', 'mobile', 'email', 'contact_person', 'agreement_number', 'agreement_date', 'start_date', 'rent_start_date', 'duration_years', 'expiry_date', 'rent_basis', 'rate_laari', 'area_sqft', 'flat_rent_mvr', 'due_day', 'grace_months', 'csr_type', 'csr_amount_mvr', 'csr_month', 'fine_method', 'fine_rate', 'status', 'notes'] as $column) {
+            foreach (['property_name', 'land_number', 'size_sqft', 'usage_type', 'tenant_name', 'registry_no', 'mobile', 'email', 'contact_person', 'agreement_number', 'agreement_date', 'start_date', 'rent_start_date', 'duration_years', 'expiry_date', 'rent_basis', 'rate_laari', 'area_sqft', 'flat_rent_mvr', 'due_day', 'grace_months', 'csr_type', 'csr_amount_mvr', 'csr_percent', 'csr_month', 'fine_method', 'fine_rate', 'status', 'notes', 'parcel_split_ok'] as $column) {
                 $row[$column] ??= '';
             }
 

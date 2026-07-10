@@ -1,58 +1,58 @@
-<div>
+<div wire:keydown.escape.window="cancel">
     <div class="mb-6 flex items-start justify-between">
         <div>
-            <nav class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Registry / Properties</nav>
-            <h1 class="text-2xl font-semibold text-ink">Properties</h1>
-            <p class="text-[13px] text-muted">Council land parcels and premises (PRD §4.1).</p>
+            <nav class="mb-1.5 flex items-center gap-1.5 text-12 text-muted"><span>Registry</span><span>/</span><span class="text-subtle">Properties</span></nav>
+            <h1 class="text-24 font-semibold text-ink">Properties</h1>
+            <p class="text-13 text-muted">Council land parcels and premises (PRD §4.1).</p>
         </div>
-        <button wire:click="create"
-            class="h-8 rounded bg-brand-500 px-4 text-sm font-medium text-white transition hover:bg-brand-600 active:bg-brand-700">
+        <button wire:click="create" class="btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
             New property
         </button>
     </div>
     <x-toast />
 
     @if ($showForm)
-        <div class="mb-8 rounded-md border border-line bg-surface p-6 shadow-card">
-            <h2 class="mb-4 text-base font-semibold text-ink">{{ $editingId ? 'Edit property' : 'Add a property' }}</h2>
-
-            <form wire:submit="save" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Name</label>
-                    <input type="text" wire:model="name" class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
-                    @error('name') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
+        <x-modal :title="$editingId ? 'Edit property' : 'Add a property'" close="cancel">
+            <form wire:submit="save">
+                <div class="grid grid-cols-1 gap-4 px-5 py-4 sm:grid-cols-2">
+                    <div>
+                        <label class="fl">Name</label>
+                        <input type="text" wire:model="name" class="input mt-1">
+                        @error('name') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="fl">Land / parcel number</label>
+                        <input type="text" wire:model="land_number" class="input mt-1">
+                        @error('land_number') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="fl">Size (ft²)</label>
+                        <input type="number" wire:model="size_sqft" class="input mt-1 text-right tabular-nums">
+                        @error('size_sqft') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="fl">Usage type</label>
+                        <select wire:model="usage_type" class="input mt-1">
+                            <option value="">Select…</option>
+                            @foreach ($usageTypes as $type)
+                                <option value="{{ $type->value }}">{{ $type->label() }}</option>
+                            @endforeach
+                        </select>
+                        @error('usage_type') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="fl">Location notes</label>
+                        <textarea wire:model="location_notes" rows="2" class="input mt-1 h-auto py-2"></textarea>
+                        @error('location_notes') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                    </div>
                 </div>
-                <div>
-                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Land / parcel number</label>
-                    <input type="text" wire:model="land_number" class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
-                    @error('land_number') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Size (ft²)</label>
-                    <input type="number" wire:model="size_sqft" class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
-                    @error('size_sqft') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Usage type</label>
-                    <select wire:model="usage_type" class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
-                        <option value="">Select…</option>
-                        @foreach ($usageTypes as $type)
-                            <option value="{{ $type->value }}">{{ $type->label() }}</option>
-                        @endforeach
-                    </select>
-                    @error('usage_type') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
-                </div>
-                <div class="sm:col-span-2">
-                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Location notes</label>
-                    <textarea wire:model="location_notes" rows="2" class="w-full rounded border border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300"></textarea>
-                    @error('location_notes') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
-                </div>
-                <div class="flex gap-2 sm:col-span-2">
-                    <button type="submit" class="h-8 rounded bg-brand-500 px-4 text-sm font-medium text-white transition hover:bg-brand-600 active:bg-brand-700">Save</button>
-                    <button type="button" wire:click="cancel" class="h-8 rounded px-4 text-sm font-medium text-subtle transition hover:bg-hover">Cancel</button>
+                <div class="flex items-center justify-end gap-2 rounded-b-lg border-t border-line-2 bg-sunken px-5 py-3.5">
+                    <button type="button" wire:click="cancel" class="btn-subtle">Cancel</button>
+                    <button type="submit" class="btn-primary">{{ $editingId ? 'Save changes' : 'Create property' }}</button>
                 </div>
             </form>
-        </div>
+        </x-modal>
     @endif
 
     <div class="overflow-x-auto rounded-md border border-line bg-surface shadow-card">

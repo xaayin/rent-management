@@ -11,6 +11,7 @@
         "laravel/framework": "^13.8",
         "laravel/tinker": "^3.0",
         "livewire/livewire": "^4.3",
+        "openspout/openspout": "^5.7",
         "spatie/browsershot": "^5.4",
         "spatie/laravel-activitylog": "^5.0",
         "spatie/laravel-pdf": "^2.12",

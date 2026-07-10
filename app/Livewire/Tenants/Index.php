@@ -9,11 +9,23 @@ use App\Models\Tenant;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('components.layouts.app')]
 class Index extends Component
 {
+    use WithPagination;
+
+    /** Free-text filter: name, registry number, mobile or email. */
+    #[Url]
+    public string $q = '';
+
+    /** Tenant-type chip (design PRD §5.5). */
+    #[Url]
+    public string $typeFilter = '';
+
     public bool $showForm = false;
 
     public ?int $editingId = null;
@@ -51,6 +63,23 @@ class Index extends Component
         $this->authorize('create', Tenant::class);
         $this->resetForm();
         $this->showForm = true;
+    }
+
+    /**
+     * Any filter change jumps back to page 1 so results never vanish behind a
+     * stale page number.
+     */
+    public function updated(string $property): void
+    {
+        if (in_array($property, ['q', 'typeFilter'], true)) {
+            $this->resetPage();
+        }
+    }
+
+    public function clearFilters(): void
+    {
+        $this->reset('q', 'typeFilter');
+        $this->resetPage();
     }
 
     public function edit(int $id): void
@@ -124,7 +153,21 @@ class Index extends Component
     public function render(): View
     {
         return view('livewire.tenants.index', [
-            'tenants' => Tenant::withCount('leases')->orderBy('name')->get(),
+            'tenants' => Tenant::query()
+                ->withCount('leases')
+                ->when($this->q !== '', function ($query): void {
+                    $term = '%'.$this->q.'%';
+                    $query->where(fn ($inner) => $inner
+                        ->where('name', 'like', $term)
+                        ->orWhere('national_id', 'like', $term)
+                        ->orWhere('company_reg_no', 'like', $term)
+                        ->orWhere('mobile', 'like', $term)
+                        ->orWhere('email', 'like', $term));
+                })
+                ->when($this->typeFilter !== '', fn ($query) => $query->where('type', $this->typeFilter))
+                ->orderBy('name')
+                ->orderBy('id') // deterministic tiebreak for equal names
+                ->paginate(10),
             'types' => TenantType::cases(),
         ]);
     }

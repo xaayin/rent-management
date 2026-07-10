@@ -94,6 +94,32 @@ it('rejects a duplicate national ID (FR-TEN-04)', function () {
         ->assertHasErrors(['national_id']);
 });
 
+it('filters and paginates the tenant list', function () {
+    foreach (range(1, 12) as $i) {
+        Tenant::factory()->create(['name' => sprintf('Tenant %02d', $i)]);
+    }
+    $org = Tenant::factory()->organisation()->create(['name' => 'Zeta Holdings', 'company_reg_no' => 'C-500/2019']);
+
+    actingAs(registryUser('land_officer'));
+
+    Livewire::test(TenantsIndex::class)
+        // 13 tenants, 10 per page, ordered by name.
+        ->assertSee('Showing 1–10 of 13')
+        ->assertDontSee('Zeta Holdings')
+        ->call('gotoPage', 2)
+        ->assertSee('Showing 11–13 of 13')
+        ->assertSee('Zeta Holdings')
+        // Type chip resets to page 1.
+        ->set('typeFilter', 'organisation')
+        ->assertSee('Showing 1–1 of 1')
+        ->assertSee('Zeta Holdings')
+        // Search by registry number.
+        ->call('clearFilters')
+        ->set('q', 'C-500/2019')
+        ->assertSee('Zeta Holdings')
+        ->assertDontSee('Tenant 01');
+});
+
 it('creates an individual tenant', function () {
     actingAs(registryUser('land_officer'));
 

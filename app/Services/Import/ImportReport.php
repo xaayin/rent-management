@@ -25,6 +25,9 @@ final class ImportReport
     /** @var list<array{line: int, reference: string, reasons: list<string>}> */
     public array $rejected = [];
 
+    /** @var list<array{line: int, reference: string, message: string}> */
+    public array $warnings = [];
+
     public int $rowsProcessed = 0;
 
     public int $monthlyRentLaari = 0;
@@ -42,6 +45,11 @@ final class ImportReport
     public function reject(int $line, string $reference, array $reasons): void
     {
         $this->rejected[] = ['line' => $line, 'reference' => $reference, 'reasons' => $reasons];
+    }
+
+    public function warn(int $line, string $reference, string $message): void
+    {
+        $this->warnings[] = ['line' => $line, 'reference' => $reference, 'message' => $message];
     }
 
     public function imported(): int

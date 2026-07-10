@@ -185,6 +185,12 @@ class Index extends Component
             return;
         }
 
+        if ($this->showForm) {
+            $this->cancel();
+
+            return;
+        }
+
         $this->closeLease();
     }
 

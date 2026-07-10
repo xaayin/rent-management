@@ -62,6 +62,20 @@ class ImportRegister extends Command
             );
         }
 
+        if ($report->warnings !== []) {
+            $this->newLine();
+            $this->warn('Imported with warnings (clean up in the app afterwards):');
+
+            $this->table(
+                ['Line', 'Reference', 'Warning'],
+                collect($report->warnings)->map(fn (array $row) => [
+                    $row['line'],
+                    $row['reference'],
+                    $row['message'],
+                ])->all(),
+            );
+        }
+
         return self::SUCCESS;
     }
 }
