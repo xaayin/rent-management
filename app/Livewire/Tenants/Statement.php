@@ -72,7 +72,7 @@ class Statement extends Component
                 $entries->push([
                     'sort' => $invoice->period_start->toDateString().'-1-'.$invoice->id,
                     'date' => $invoice->period_start->toDateString(),
-                    'label' => "Invoice {$invoice->number} — {$lease->property->name}, {$invoice->period_start->format('F Y')}",
+                    'label' => "Invoice {$invoice->number} — {$lease->property->name}, {$invoice->periodLabel()}",
                     'detail' => $detail,
                     'debit' => $invoice->total_laari,
                     'credit' => 0,

@@ -1,19 +1,22 @@
-<div>
+<div wire:keydown.escape.window="closeCreateInvoice">
     <div class="mb-6 flex items-end justify-between">
         <div>
-            <nav class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Billing / Invoices</nav>
-            <h1 class="text-2xl font-semibold text-ink">Invoices</h1>
-            <p class="text-[13px] text-muted">Automatically generated each cycle from active lease terms (PRD §4.5).</p>
+            <nav class="mb-1.5 flex items-center gap-1.5 text-12 text-muted"><span>Billing</span><span>/</span><span class="text-subtle">Invoices</span></nav>
+            <h1 class="text-24 font-semibold text-ink">Invoices</h1>
+            <p class="text-13 text-muted">Automatically generated each cycle from active lease terms (PRD §4.5).</p>
         </div>
         <div class="flex items-end gap-2">
             <div>
-                <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Billing month</label>
-                <input type="month" wire:model="period" class="h-8 rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
+                <label class="fl mb-1 block">Billing month</label>
+                <input type="month" wire:model="period" class="input h-8 w-40">
             </div>
-            <button wire:click="generate" wire:loading.attr="disabled"
-                class="h-8 rounded bg-brand-500 px-4 text-sm font-medium text-white transition hover:bg-brand-600 active:bg-brand-700 disabled:opacity-40">
+            <button wire:click="generate" wire:loading.attr="disabled" class="btn-subtle border border-line">
                 <span wire:loading.remove wire:target="generate">Generate this month</span>
                 <span wire:loading wire:target="generate">Generating…</span>
+            </button>
+            <button wire:click="openCreateInvoice" class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+                New invoice
             </button>
         </div>
     </div>
@@ -86,7 +89,12 @@
                         <td class="px-4 py-3 font-medium text-ink">{{ $invoice->number }}</td>
                         <td class="px-4 py-3 text-subtle">{{ $invoice->lease->tenant->name }}</td>
                         <td class="px-4 py-3 text-subtle">{{ $invoice->lease->property->name }}</td>
-                        <td class="px-4 py-3 tabular-nums text-subtle">{{ $invoice->period_start->format('M Y') }}</td>
+                        <td class="px-4 py-3 tabular-nums text-subtle whitespace-nowrap">
+                            {{ $invoice->periodLabel() }}
+                            @if ($invoice->period_months > 1)
+                                <span class="loz loz-info ml-1">{{ $invoice->period_months }} mo</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 tabular-nums text-subtle">{{ $invoice->due_date->toDateString() }}</td>
                         <td class="px-4 py-3 text-right tabular-nums text-ink">{{ $invoice->rent()->format() }}</td>
                         <td class="px-4 py-3 text-right tabular-nums text-subtle">{{ $invoice->charges()->format() }}</td>
@@ -243,4 +251,80 @@
         </div>
         <x-pagination :paginator="$invoices" />
     </div>
+
+    {{-- ============ Modal: new invoice / advance billing (FR-INV-05) ============ --}}
+    @if ($creatingInvoice)
+        <x-modal title="New invoice" close="closeCreateInvoice">
+            <div class="space-y-4 px-5 py-4">
+                <div>
+                    <label class="fl-req">Lease</label>
+                    <select wire:model.live="inv_lease_id" class="input mt-1">
+                        <option value="">Pick a lease…</option>
+                        @foreach ($activeLeases as $leaseOption)
+                            <option value="{{ $leaseOption->id }}">
+                                {{ $leaseOption->agreement_number }} — {{ $leaseOption->tenant->name }} · {{ $leaseOption->property->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('inv_lease_id') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="fl-req">First billing month</label>
+                        <input type="month" wire:model.live="inv_start" class="input mt-1">
+                        @error('inv_start') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="fl-req">Months covered</label>
+                        <input type="number" wire:model.live="inv_months" min="1" class="input mt-1 text-right tabular-nums">
+                        @error('inv_months') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                {{-- quick picks --}}
+                <div class="flex flex-wrap items-center gap-1.5">
+                    @foreach ([1 => '1 month', 3 => '3 months', 6 => '6 months', 12 => '1 year'] as $n => $label)
+                        <button type="button" wire:click="setMonths({{ $n }})"
+                            class="chip h-7 px-2 text-12 {{ $inv_months === $n ? 'border-brand-500 text-brand-600' : '' }}">{{ $label }}</button>
+                    @endforeach
+                    <button type="button" wire:click="setMonthsUntilLeaseEnd" class="chip h-7 px-2 text-12">Until lease end</button>
+                </div>
+
+                {{-- live preview --}}
+                @if ($newInvoice !== null)
+                    <div class="space-y-1.5 rounded-md border border-line-2 bg-sunken p-3 text-13">
+                        <div class="flex justify-between">
+                            <span class="text-subtle">Period covered</span>
+                            <span class="font-medium">{{ $newInvoice['label'] }} <span class="text-muted">({{ $newInvoice['months'] }} month{{ $newInvoice['months'] === 1 ? '' : 's' }})</span></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-subtle">Rent — {{ $newInvoice['months'] }} × {{ $newInvoice['monthly_rent']->format() }}</span>
+                            <span class="tabular-nums">{{ $newInvoice['rent']->format() }}</span>
+                        </div>
+                        @if ($newInvoice['csr_occurrences'] > 0)
+                            <div class="flex justify-between">
+                                <span class="text-subtle">CSR charge × {{ $newInvoice['csr_occurrences'] }}</span>
+                                <span class="tabular-nums">{{ $newInvoice['charges']->format() }}</span>
+                            </div>
+                        @endif
+                        <div class="mt-1.5 flex justify-between border-t border-line pt-1.5 font-semibold">
+                            <span>Invoice total</span>
+                            <span class="tabular-nums">{{ $newInvoice['total']->format() }}</span>
+                        </div>
+                        <p class="pt-1 text-11 text-muted">Due {{ $newInvoice['due_date'] }} · one invoice, one payment.</p>
+                        @if ($newInvoice['error'] !== null)
+                            <p class="pt-1 text-13 text-danger-fg">{{ $newInvoice['error'] }}</p>
+                        @endif
+                    </div>
+                @endif
+            </div>
+            <div class="flex items-center justify-end gap-2 rounded-b-lg border-t border-line-2 bg-sunken px-5 py-3.5">
+                <button type="button" wire:click="closeCreateInvoice" class="btn-subtle">Cancel</button>
+                <button type="button" wire:click="createInvoice" class="btn-primary" @disabled($newInvoice !== null && $newInvoice['error'] !== null)>
+                    Create invoice
+                </button>
+            </div>
+        </x-modal>
+    @endif
 </div>

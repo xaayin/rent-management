@@ -320,6 +320,7 @@
                     @if ($detail['unpaid']->isNotEmpty())
                         <button wire:click="sendReminder({{ $detail['unpaid']->first()->id }})" class="btn-subtle">Send reminder</button>
                     @endif
+                    <a href="{{ route('invoices.index', ['createFor' => $lease->id]) }}" class="btn-subtle">Create invoice</a>
                 @endcan
                 <span class="ml-auto flex items-center gap-2">
                     @can('configureFineRule', $lease)
@@ -526,7 +527,7 @@
                                     @foreach ($detail['recent_invoices'] as $invoice)
                                         <tr>
                                             <td class="px-3 py-2">
-                                                <span class="font-medium text-ink">{{ $invoice->period_start->format('M Y') }}</span>
+                                                <span class="font-medium text-ink">{{ $invoice->periodLabel() }}</span>
                                                 <span class="text-muted"> · {{ $invoice->number }}</span>
                                             </td>
                                             <td class="px-3 py-2 text-right tabular-nums">{{ $invoice->total()->format() }}</td>
@@ -592,7 +593,7 @@
                         <select wire:model.live="payingInvoiceId" class="input mt-1">
                             @foreach ($detail['unpaid'] as $unpaidInvoice)
                                 <option value="{{ $unpaidInvoice->id }}">
-                                    {{ $unpaidInvoice->number }} — {{ $unpaidInvoice->period_start->format('M Y') }} ({{ $unpaidInvoice->outstandingTotal()->format() }} due)
+                                    {{ $unpaidInvoice->number }} — {{ $unpaidInvoice->periodLabel() }} ({{ $unpaidInvoice->outstandingTotal()->format() }} due)
                                 </option>
                             @endforeach
                         </select>

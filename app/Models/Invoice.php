@@ -27,6 +27,7 @@ class Invoice extends Model
         'lease_id',
         'period_year',
         'period_month',
+        'period_months',
         'period_start',
         'period_end',
         'due_date',
@@ -42,6 +43,7 @@ class Invoice extends Model
         return [
             'period_year' => 'integer',
             'period_month' => 'integer',
+            'period_months' => 'integer',
             'period_start' => 'date',
             'period_end' => 'date',
             'due_date' => 'date',
@@ -137,6 +139,18 @@ class Invoice extends Model
         };
 
         $this->update(['status' => $status->value]);
+    }
+
+    /**
+     * "Jan 2026" for a monthly invoice, "Jan – Jun 2026" for an advance one.
+     */
+    public function periodLabel(): string
+    {
+        if ($this->period_months <= 1) {
+            return $this->period_start->format('M Y');
+        }
+
+        return $this->period_start->format('M Y').' – '.$this->period_end->format('M Y');
     }
 
     public function rent(): Money

@@ -7,11 +7,14 @@ namespace App\Services\Billing;
 use App\Enums\CsrType;
 use App\Enums\InvoiceLineType;
 use App\Enums\InvoiceStatus;
+use App\Enums\LeaseStatus;
 use App\Enums\RentBasis;
+use App\Exceptions\InvalidInvoiceRangeException;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -37,29 +40,101 @@ class InvoiceGenerator
             return null;
         }
 
-        $existing = Invoice::query()
-            ->where('lease_id', $lease->id)
-            ->where('period_year', $period->year)
-            ->where('period_month', $period->month)
-            ->first();
+        $covering = $this->overlapping($lease, $period, $period->endOfMonth());
 
-        if ($existing !== null) {
-            return $existing;
+        if ($covering->isNotEmpty()) {
+            // Exactly this month → idempotent re-run; covered by an advance
+            // invoice → already billed, nothing to do (FR-INV-06).
+            $exact = $covering->first(fn (Invoice $invoice): bool => $invoice->period_year === $period->year
+                && $invoice->period_month === $period->month
+                && $invoice->period_months === 1);
+
+            return $exact;
         }
 
-        return DB::transaction(function () use ($lease, $period): Invoice {
-            [$lines, $rent, $charges] = $this->buildLines($lease, $period);
+        return $this->create($lease, $period, 1);
+    }
 
-            $dueDay = min((int) $lease->due_day, $period->daysInMonth);
+    /**
+     * Advance billing (FR-INV-05): one invoice covering $months consecutive
+     * billing months from $from — a quarter, a year, or the whole remaining
+     * lease term, paid up-front as a single document.
+     */
+    public function generateRange(Lease $lease, CarbonImmutable $from, int $months): Invoice
+    {
+        $from = $from->startOfMonth();
+
+        $this->assertRangeBillable($lease, $from, $months);
+
+        return $this->create($lease, $from, $months);
+    }
+
+    /**
+     * Validate an advance range without creating anything — used by the UI
+     * preview so conflicts surface before submitting.
+     */
+    public function assertRangeBillable(Lease $lease, CarbonImmutable $from, int $months): void
+    {
+        $from = $from->startOfMonth();
+
+        if ($months < 1) {
+            throw InvalidInvoiceRangeException::invalidMonths();
+        }
+
+        if ($lease->status !== LeaseStatus::Active) {
+            throw InvalidInvoiceRangeException::leaseNotActive();
+        }
+
+        $effectiveStart = $lease->effectiveRentStart()->startOfMonth();
+
+        if ($from->lessThan($effectiveStart)) {
+            throw InvalidInvoiceRangeException::beforeRentStart($lease->effectiveRentStart()->toDateString());
+        }
+
+        $lastMonth = $from->addMonths($months - 1);
+        $expiry = CarbonImmutable::parse($lease->expiry_date);
+
+        if (! $lastMonth->lessThan($expiry)) {
+            throw InvalidInvoiceRangeException::beyondExpiry($expiry->toDateString());
+        }
+
+        $conflicts = $this->overlapping($lease, $from, $lastMonth->endOfMonth());
+
+        if ($conflicts->isNotEmpty()) {
+            throw InvalidInvoiceRangeException::overlaps($conflicts->pluck('number')->all());
+        }
+    }
+
+    /**
+     * Invoices of the lease whose period range intersects [$start, $end].
+     *
+     * @return Collection<int, Invoice>
+     */
+    private function overlapping(Lease $lease, CarbonImmutable $start, CarbonImmutable $end): Collection
+    {
+        return Invoice::query()
+            ->where('lease_id', $lease->id)
+            ->whereDate('period_start', '<=', $end->toDateString())
+            ->whereDate('period_end', '>=', $start->toDateString())
+            ->get();
+    }
+
+    private function create(Lease $lease, CarbonImmutable $from, int $months): Invoice
+    {
+        return DB::transaction(function () use ($lease, $from, $months): Invoice {
+            [$lines, $rent, $charges] = $this->buildLines($lease, $from, $months);
+
+            $dueDay = min((int) $lease->due_day, $from->daysInMonth);
 
             $invoice = Invoice::create([
-                'number' => $this->numbers->next($period->year),
+                'number' => $this->numbers->next($from->year),
                 'lease_id' => $lease->id,
-                'period_year' => $period->year,
-                'period_month' => $period->month,
-                'period_start' => $period->toDateString(),
-                'period_end' => $period->endOfMonth()->toDateString(),
-                'due_date' => $period->day($dueDay)->toDateString(),
+                'period_year' => $from->year,
+                'period_month' => $from->month,
+                'period_months' => $months,
+                'period_start' => $from->toDateString(),
+                'period_end' => $from->addMonths($months - 1)->endOfMonth()->toDateString(),
+                'due_date' => $from->day($dueDay)->toDateString(),
                 'status' => InvoiceStatus::Issued->value,
                 'rent_laari' => $rent,
                 'charges_laari' => $charges,
@@ -98,44 +173,69 @@ class InvoiceGenerator
     /**
      * @return array{0: list<array<string, mixed>>, 1: int, 2: int}
      */
-    private function buildLines(Lease $lease, CarbonImmutable $period): array
+    private function buildLines(Lease $lease, CarbonImmutable $from, int $months = 1): array
     {
         $position = 0;
-        $rent = $lease->monthlyRent()->laari;
+        $monthlyRent = $lease->monthlyRent()->laari;
+        $rent = $monthlyRent * $months;
 
         $lines = [[
             'type' => InvoiceLineType::Rent->value,
-            'description' => $this->rentDescription($lease),
+            'description' => $this->rentDescription($lease, $from, $months),
             'amount_laari' => $rent,
-            'meta' => $this->rentMeta($lease),
+            'meta' => array_merge($this->rentMeta($lease), [
+                'months' => $months,
+                'monthly_rent_laari' => $monthlyRent,
+            ]),
             'position' => $position++,
         ]];
 
         $charges = 0;
 
-        if ($lease->hasCsr() && $period->month === $lease->effectiveCsrMonth()) {
-            $charges = $lease->csrAnnualAmount()->laari;
+        // One CSR charge for every occurrence of the CSR month inside the
+        // covered range — a two-year advance with an annual CSR bills it twice.
+        if ($lease->hasCsr()) {
+            for ($offset = 0; $offset < $months; $offset++) {
+                $month = $from->addMonths($offset);
 
-            $lines[] = [
-                'type' => InvoiceLineType::Csr->value,
-                'description' => $this->csrDescription($lease),
-                'amount_laari' => $charges,
-                'meta' => $this->csrMeta($lease),
-                'position' => $position++,
-            ];
+                if ($month->month !== $lease->effectiveCsrMonth()) {
+                    continue;
+                }
+
+                $amount = $lease->csrAnnualAmount()->laari;
+                $charges += $amount;
+
+                $lines[] = [
+                    'type' => InvoiceLineType::Csr->value,
+                    'description' => $this->csrDescription($lease).($months > 1 ? ' — '.$month->format('Y') : ''),
+                    'amount_laari' => $amount,
+                    'meta' => $this->csrMeta($lease),
+                    'position' => $position++,
+                ];
+            }
         }
 
         return [$lines, $rent, $charges];
     }
 
-    private function rentDescription(Lease $lease): string
+    private function rentDescription(Lease $lease, CarbonImmutable $from, int $months): string
     {
-        if ($lease->rent_basis === RentBasis::PerSquareFoot) {
-            return 'Monthly rent — '.number_format((int) $lease->area_sqft).' ft² × '
-                .Money::fromLaari((int) $lease->rate_laari)->format().'/ft²';
+        $basis = $lease->rent_basis === RentBasis::PerSquareFoot
+            ? number_format((int) $lease->area_sqft).' ft² × '.Money::fromLaari((int) $lease->rate_laari)->format().'/ft²'
+            : 'flat '.$lease->monthlyRent()->format().'/month';
+
+        if ($months === 1) {
+            return "Monthly rent — {$basis}";
         }
 
-        return 'Monthly rent (flat)';
+        return sprintf(
+            'Rent %s to %s — %d months × %s (%s)',
+            $from->format('M Y'),
+            $from->addMonths($months - 1)->format('M Y'),
+            $months,
+            $lease->monthlyRent()->format(),
+            $basis,
+        );
     }
 
     /**
