@@ -21,7 +21,49 @@
     @error('period') <p class="mb-3 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
     <x-toast />
 
-    <div class="overflow-x-auto rounded-md border border-line bg-surface shadow-card">
+    {{-- ============ Toolbar: filter + chips (design PRD §5.5) ============ --}}
+    <div class="mb-3 flex flex-wrap items-center gap-2">
+        <label class="relative">
+            <span class="absolute inset-y-0 left-2.5 grid place-items-center text-muted">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            </span>
+            <input type="text" wire:model.live.debounce.300ms="q" placeholder="Filter invoices"
+                class="h-8 w-56 rounded border border-line bg-surface pl-8 pr-3 text-13 placeholder:text-muted focus:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
+        </label>
+
+        <select wire:model.live="statusFilter" class="chip {{ $statusFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
+            <option value="">Status</option>
+            @foreach ($invoiceStatuses as $statusOption)
+                <option value="{{ $statusOption->value }}">{{ $statusOption->label() }}</option>
+            @endforeach
+        </select>
+
+        <select wire:model.live="tenantTypeFilter" class="chip {{ $tenantTypeFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
+            <option value="">Tenant type</option>
+            @foreach ($tenantTypes as $typeOption)
+                <option value="{{ $typeOption->value }}">{{ $typeOption->label() }}</option>
+            @endforeach
+        </select>
+
+        <select wire:model.live="propertyTypeFilter" class="chip {{ $propertyTypeFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
+            <option value="">Property type</option>
+            @foreach ($usageTypes as $usageOption)
+                <option value="{{ $usageOption->value }}">{{ $usageOption->label() }}</option>
+            @endforeach
+        </select>
+
+        <input type="month" wire:model.live="periodFilter" title="Billing period"
+            class="chip {{ $periodFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
+
+        @if ($q !== '' || $statusFilter !== '' || $tenantTypeFilter !== '' || $propertyTypeFilter !== '' || $periodFilter !== '')
+            <button wire:click="clearFilters" class="btn-subtle h-8 px-2 text-12">Clear filters</button>
+        @endif
+
+        <div class="ml-auto text-12 text-muted">{{ $invoices->total() }} invoice{{ $invoices->total() === 1 ? '' : 's' }}</div>
+    </div>
+
+    <div class="overflow-hidden rounded-md border border-line bg-surface shadow-card">
+        <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
             <thead>
                 <tr class="border-b border-line bg-sunken text-[11px] uppercase tracking-wide text-muted">
@@ -188,9 +230,17 @@
                         </tr>
                     @endif
                 @empty
-                    <tr><td colspan="11" class="px-4 py-8 text-center text-[13px] text-muted">No invoices yet — pick a month and generate.</td></tr>
+                    <tr><td colspan="11" class="px-4 py-8 text-center text-[13px] text-muted">
+                        @if ($q !== '' || $statusFilter !== '' || $tenantTypeFilter !== '' || $propertyTypeFilter !== '' || $periodFilter !== '')
+                            No invoices match this view — clear the filters.
+                        @else
+                            No invoices yet — pick a month and generate.
+                        @endif
+                    </td></tr>
                 @endforelse
             </tbody>
         </table>
+        </div>
+        <x-pagination :paginator="$invoices" />
     </div>
 </div>

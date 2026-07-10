@@ -11,6 +11,8 @@ use App\Enums\InvoiceStatus;
 use App\Enums\LeaseStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\RentBasis;
+use App\Enums\TenantType;
+use App\Enums\UsageType;
 use App\Livewire\Concerns\InteractsWithPayments;
 use App\Models\FineRule;
 use App\Models\Lease;
@@ -18,18 +20,19 @@ use App\Models\Property;
 use App\Models\Tenant;
 use App\Support\Money;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 use Spatie\Activitylog\Models\Activity;
 
 #[Layout('components.layouts.app')]
 class Index extends Component
 {
-    use InteractsWithPayments;
+    use InteractsWithPayments, WithPagination;
 
     /** Saved-view tab (design PRD §5.5): all | active | overdue | expiring. */
     #[Url]
@@ -38,6 +41,16 @@ class Index extends Component
     /** Free-text filter, also fed by the top-bar global search. */
     #[Url]
     public string $q = '';
+
+    /** Filter chips (design PRD §5.5): status, tenant type, property type. */
+    #[Url]
+    public string $statusFilter = '';
+
+    #[Url]
+    public string $tenantTypeFilter = '';
+
+    #[Url]
+    public string $propertyTypeFilter = '';
 
     /** The lease open in the detail slide-over (design PRD §4.2). */
     public ?int $selectedId = null;
@@ -134,6 +147,23 @@ class Index extends Component
     public function selectLease(int $id): void
     {
         $this->selectedId = Lease::findOrFail($id)->id;
+    }
+
+    /**
+     * Any change to a filter jumps back to page 1 so results never vanish
+     * behind a stale page number.
+     */
+    public function updated(string $property): void
+    {
+        if (in_array($property, ['q', 'tab', 'statusFilter', 'tenantTypeFilter', 'propertyTypeFilter'], true)) {
+            $this->resetPage();
+        }
+    }
+
+    public function clearFilters(): void
+    {
+        $this->reset('q', 'statusFilter', 'tenantTypeFilter', 'propertyTypeFilter');
+        $this->resetPage();
     }
 
     public function closeLease(): void
@@ -388,15 +418,19 @@ class Index extends Component
             'fineMethods' => FineMethod::cases(),
             'fineBases' => FineBase::cases(),
             'methods' => PaymentMethod::cases(),
+            'leaseStatuses' => LeaseStatus::cases(),
+            'tenantTypes' => TenantType::cases(),
+            'usageTypes' => UsageType::cases(),
         ]);
     }
 
     /**
-     * The filtered issue-list rows with billing aggregates (design PRD §6.2).
+     * The filtered issue-list rows with billing aggregates (design PRD §6.2),
+     * paginated in the issue-list style (§5.4).
      *
-     * @return Collection<int, Lease>
+     * @return LengthAwarePaginator<int, Lease>
      */
-    private function leaseList(): Collection
+    private function leaseList(): LengthAwarePaginator
     {
         $unpaid = [InvoiceStatus::Issued->value, InvoiceStatus::PartlyPaid->value, InvoiceStatus::Overdue->value];
 
@@ -428,8 +462,16 @@ class Index extends Component
             ->when($this->tab === 'expiring', fn ($query) => $query
                 ->where('status', LeaseStatus::Active->value)
                 ->whereBetween('expiry_date', [today()->toDateString(), today()->addDays(90)->toDateString()]))
+            ->when($this->statusFilter !== '', fn ($query) => $query->where('status', $this->statusFilter))
+            ->when($this->tenantTypeFilter !== '', fn ($query) => $query->whereHas(
+                'tenant', fn ($t) => $t->where('type', $this->tenantTypeFilter),
+            ))
+            ->when($this->propertyTypeFilter !== '', fn ($query) => $query->whereHas(
+                'property', fn ($p) => $p->where('usage_type', $this->propertyTypeFilter),
+            ))
             ->latest()
-            ->get();
+            ->orderByDesc('id') // deterministic tiebreak within one second
+            ->paginate(10);
     }
 
     /**

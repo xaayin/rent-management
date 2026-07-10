@@ -176,7 +176,7 @@
         </div>
     @endif
 
-    {{-- ============ Toolbar: filter + tabs (design PRD §5.5) ============ --}}
+    {{-- ============ Toolbar: filter + chips (design PRD §5.5) ============ --}}
     <div class="mb-3 flex flex-wrap items-center gap-2">
         <label class="relative">
             <span class="absolute inset-y-0 left-2.5 grid place-items-center text-muted">
@@ -185,7 +185,33 @@
             <input type="text" wire:model.live.debounce.300ms="q" placeholder="Filter leases"
                 class="h-8 w-56 rounded border border-line bg-surface pl-8 pr-3 text-13 placeholder:text-muted focus:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
         </label>
-        <div class="ml-auto text-12 text-muted">{{ $leases->count() }} lease{{ $leases->count() === 1 ? '' : 's' }}</div>
+
+        <select wire:model.live="statusFilter" class="chip {{ $statusFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
+            <option value="">Status</option>
+            @foreach ($leaseStatuses as $statusOption)
+                <option value="{{ $statusOption->value }}">{{ $statusOption->label() }}</option>
+            @endforeach
+        </select>
+
+        <select wire:model.live="tenantTypeFilter" class="chip {{ $tenantTypeFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
+            <option value="">Tenant type</option>
+            @foreach ($tenantTypes as $typeOption)
+                <option value="{{ $typeOption->value }}">{{ $typeOption->label() }}</option>
+            @endforeach
+        </select>
+
+        <select wire:model.live="propertyTypeFilter" class="chip {{ $propertyTypeFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
+            <option value="">Property type</option>
+            @foreach ($usageTypes as $usageOption)
+                <option value="{{ $usageOption->value }}">{{ $usageOption->label() }}</option>
+            @endforeach
+        </select>
+
+        @if ($q !== '' || $statusFilter !== '' || $tenantTypeFilter !== '' || $propertyTypeFilter !== '')
+            <button wire:click="clearFilters" class="btn-subtle h-8 px-2 text-12">Clear filters</button>
+        @endif
+
+        <div class="ml-auto text-12 text-muted">{{ $leases->total() }} lease{{ $leases->total() === 1 ? '' : 's' }}</div>
     </div>
 
     <div class="mb-2 flex items-center gap-1 border-b border-line-2">
@@ -251,8 +277,8 @@
                         </tr>
                     @empty
                         <tr><td colspan="7" class="px-4 py-10 text-center text-13 text-muted">
-                            @if ($q !== '' || $tab !== 'all')
-                                No leases match this view — clear the filter or switch tabs.
+                            @if ($q !== '' || $tab !== 'all' || $statusFilter !== '' || $tenantTypeFilter !== '' || $propertyTypeFilter !== '')
+                                No leases match this view — clear the filters or switch tabs.
                             @else
                                 No leases yet — create the first one.
                             @endif
@@ -261,6 +287,8 @@
                 </tbody>
             </table>
         </div>
+
+        <x-pagination :paginator="$leases" />
     </div>
 
     {{-- ============ Slide-over: lease detail (design PRD §5.7, §6.3) ============ --}}

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\PaymentMethod;
 use App\Livewire\Invoices\Index as InvoicesIndex;
 use App\Livewire\Leases\Index as LeasesIndex;
 use App\Models\Invoice;
@@ -9,6 +10,10 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Billing\InvoiceGenerator;
+use App\Services\Billing\PaymentRecorder;
+use App\Support\Money;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Livewire\Livewire;
 
@@ -29,6 +34,51 @@ function billingUser(string $role): User
 it('lets a finance officer view invoices but blocks a land officer', function () {
     actingAs(billingUser('finance_officer'))->get('/invoices')->assertOk();
     actingAs(billingUser('land_officer'))->get('/invoices')->assertForbidden();
+});
+
+it('filters and paginates the invoice list', function () {
+    $leases = Lease::factory()->count(12)->active()->create([
+        'start_date' => '2026-01-01',
+        'rent_start_date' => '2026-01-01',
+        'expiry_date' => '2036-01-01',
+    ]);
+
+    $generator = app(InvoiceGenerator::class);
+
+    foreach ($leases as $lease) {
+        $generator->generate($lease, CarbonImmutable::parse('2026-01-01'));
+    }
+
+    // One extra invoice in February, and one January invoice fully paid.
+    $febInvoice = $generator->generate($leases->first(), CarbonImmutable::parse('2026-02-01'));
+    $paid = Invoice::where('period_month', 1)->first();
+    app(PaymentRecorder::class)->record(
+        $paid,
+        Money::fromLaari($paid->total_laari),
+        CarbonImmutable::parse('2026-01-05'),
+        PaymentMethod::Cash,
+    );
+
+    actingAs(billingUser('finance_officer'));
+
+    Livewire::test(InvoicesIndex::class)
+        // 13 invoices, 10 per page.
+        ->assertSee('Showing 1–10 of 13')
+        ->call('gotoPage', 2)
+        ->assertSee('Showing 11–13 of 13')
+        // Status chip resets to page 1 and narrows to the paid invoice.
+        ->set('statusFilter', 'paid')
+        ->assertSee('Showing 1–1 of 1')
+        ->assertSee($paid->number)
+        // Period chip: only the February invoice.
+        ->call('clearFilters')
+        ->set('periodFilter', '2026-02')
+        ->assertSee('Showing 1–1 of 1')
+        ->assertSee($febInvoice->number)
+        // Search by tenant name.
+        ->call('clearFilters')
+        ->set('q', $paid->lease->tenant->name)
+        ->assertSee($paid->number);
 });
 
 it('generates the month\'s invoices from the screen', function () {

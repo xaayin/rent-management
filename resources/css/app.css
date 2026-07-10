@@ -176,6 +176,18 @@
         @apply flex w-full items-center gap-3 rounded p-2 hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
     }
 
+    .chip {
+        @apply inline-flex h-8 items-center gap-1.5 rounded border border-line bg-surface px-2.5 text-13 text-subtle hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
+    }
+
+    .pg {
+        @apply grid h-7 w-7 place-items-center rounded text-12 text-subtle hover:bg-hover disabled:opacity-40 disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
+    }
+
+    .pg-active {
+        @apply bg-selected font-semibold text-brand-600;
+    }
+
     .stat {
         @apply rounded-md border border-line bg-surface px-4 py-3.5 shadow-card;
     }
