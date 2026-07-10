@@ -119,7 +119,7 @@ trait InteractsWithPayments
             return null;
         }
 
-        $invoice = Invoice::with(['payments' => fn ($query) => $query->orderBy('id'), 'lease'])
+        $invoice = Invoice::with(['payments' => fn ($query) => $query->orderBy('id'), 'lease.tenant', 'lease.property'])
             ->find($this->payingInvoiceId);
 
         if ($invoice === null) {

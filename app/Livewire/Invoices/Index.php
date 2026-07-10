@@ -97,6 +97,20 @@ class Index extends Component
         $this->resetValidation();
     }
 
+    /**
+     * Esc closes whichever overlay is on top (design PRD §5.7/§5.8).
+     */
+    public function closeOverlays(): void
+    {
+        if ($this->creatingInvoice) {
+            $this->closeCreateInvoice();
+
+            return;
+        }
+
+        $this->cancelPayment();
+    }
+
     public function updatedInvLeaseId(): void
     {
         $this->inv_months = 1;
