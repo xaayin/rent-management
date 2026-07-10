@@ -53,6 +53,35 @@ it('creates and archives a property', function () {
     expect($property->fresh()->isArchived())->toBeTrue();
 });
 
+it('filters and paginates the property list', function () {
+    foreach (range(1, 12) as $i) {
+        Property::factory()->create(['name' => sprintf('Plot %02d', $i), 'usage_type' => 'commercial']);
+    }
+    Property::factory()->archived()->create(['name' => 'Zulu Boatyard', 'land_number' => 'L-Z1', 'usage_type' => 'boat_shed']);
+
+    actingAs(registryUser('land_officer'));
+
+    Livewire::test(PropertiesIndex::class)
+        // 13 properties, name-ordered, 10 per page.
+        ->assertSee('Showing 1–10 of 13')
+        ->assertDontSee('Zulu Boatyard')
+        ->call('gotoPage', 2)
+        ->assertSee('Zulu Boatyard')
+        // Usage chip resets to page 1.
+        ->set('usageFilter', 'boat_shed')
+        ->assertSee('Showing 1–1 of 1')
+        ->assertSee('Zulu Boatyard')
+        // Status chip.
+        ->call('clearFilters')
+        ->set('statusFilter', 'archived')
+        ->assertSee('Showing 1–1 of 1')
+        // Search by land number.
+        ->call('clearFilters')
+        ->set('q', 'L-Z1')
+        ->assertSee('Zulu Boatyard')
+        ->assertDontSee('Plot 01');
+});
+
 // --- Tenants ----------------------------------------------------------------
 
 it('requires a national ID for an individual tenant', function () {

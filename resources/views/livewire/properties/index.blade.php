@@ -55,7 +55,39 @@
         </x-modal>
     @endif
 
-    <div class="overflow-x-auto rounded-md border border-line bg-surface shadow-card">
+    {{-- ============ Toolbar: filter + chips (design PRD §5.5) ============ --}}
+    <div class="mb-3 flex flex-wrap items-center gap-2">
+        <label class="relative">
+            <span class="absolute inset-y-0 left-2.5 grid place-items-center text-muted">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            </span>
+            <input type="text" wire:model.live.debounce.300ms="q" placeholder="Filter properties"
+                class="h-8 w-56 rounded border border-line bg-surface pl-8 pr-3 text-13 placeholder:text-muted focus:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
+        </label>
+
+        <select wire:model.live="usageFilter" class="chip {{ $usageFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
+            <option value="">Usage type</option>
+            @foreach ($usageTypes as $usageOption)
+                <option value="{{ $usageOption->value }}">{{ $usageOption->label() }}</option>
+            @endforeach
+        </select>
+
+        <select wire:model.live="statusFilter" class="chip {{ $statusFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
+            <option value="">Status</option>
+            @foreach ($propertyStatuses as $statusOption)
+                <option value="{{ $statusOption->value }}">{{ $statusOption->label() }}</option>
+            @endforeach
+        </select>
+
+        @if ($q !== '' || $usageFilter !== '' || $statusFilter !== '')
+            <button wire:click="clearFilters" class="btn-subtle h-8 px-2 text-12">Clear filters</button>
+        @endif
+
+        <div class="ml-auto text-12 text-muted">{{ $properties->total() }} propert{{ $properties->total() === 1 ? 'y' : 'ies' }}</div>
+    </div>
+
+    <div class="overflow-hidden rounded-md border border-line bg-surface shadow-card">
+        <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
             <thead>
                 <tr class="border-b border-line bg-sunken text-[11px] uppercase tracking-wide text-muted">
@@ -91,9 +123,17 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-8 text-center text-[13px] text-muted">No properties yet — add the first one.</td></tr>
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-[13px] text-muted">
+                        @if ($q !== '' || $usageFilter !== '' || $statusFilter !== '')
+                            No properties match this view — clear the filters.
+                        @else
+                            No properties yet — add the first one.
+                        @endif
+                    </td></tr>
                 @endforelse
             </tbody>
         </table>
+        </div>
+        <x-pagination :paginator="$properties" />
     </div>
 </div>

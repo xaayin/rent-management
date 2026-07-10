@@ -4,16 +4,32 @@ declare(strict_types=1);
 
 namespace App\Livewire\Properties;
 
+use App\Enums\PropertyStatus;
 use App\Enums\UsageType;
 use App\Models\Property;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('components.layouts.app')]
 class Index extends Component
 {
+    use WithPagination;
+
+    /** Free-text filter: name or land number. */
+    #[Url]
+    public string $q = '';
+
+    /** Filter chips (design PRD §5.5). */
+    #[Url]
+    public string $usageFilter = '';
+
+    #[Url]
+    public string $statusFilter = '';
+
     public bool $showForm = false;
 
     public ?int $editingId = null;
@@ -43,6 +59,23 @@ class Index extends Component
         $this->authorize('create', Property::class);
         $this->resetForm();
         $this->showForm = true;
+    }
+
+    /**
+     * Any filter change jumps back to page 1 so results never vanish behind a
+     * stale page number.
+     */
+    public function updated(string $property): void
+    {
+        if (in_array($property, ['q', 'usageFilter', 'statusFilter'], true)) {
+            $this->resetPage();
+        }
+    }
+
+    public function clearFilters(): void
+    {
+        $this->reset('q', 'usageFilter', 'statusFilter');
+        $this->resetPage();
     }
 
     public function edit(int $id): void
@@ -107,8 +140,21 @@ class Index extends Component
     public function render(): View
     {
         return view('livewire.properties.index', [
-            'properties' => Property::withCount('activeLeases')->orderBy('name')->get(),
+            'properties' => Property::query()
+                ->withCount('activeLeases')
+                ->when($this->q !== '', function ($query): void {
+                    $term = '%'.$this->q.'%';
+                    $query->where(fn ($inner) => $inner
+                        ->where('name', 'like', $term)
+                        ->orWhere('land_number', 'like', $term));
+                })
+                ->when($this->usageFilter !== '', fn ($query) => $query->where('usage_type', $this->usageFilter))
+                ->when($this->statusFilter !== '', fn ($query) => $query->where('status', $this->statusFilter))
+                ->orderBy('name')
+                ->orderBy('id') // deterministic tiebreak for equal names
+                ->paginate(10),
             'usageTypes' => UsageType::cases(),
+            'propertyStatuses' => PropertyStatus::cases(),
         ]);
     }
 
