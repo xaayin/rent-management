@@ -6,6 +6,28 @@ moving on. All slices assume the rules in `../CLAUDE.md` and the requirements in
 
 > Convention: money is stored as **integer laari** (1 MVR = 100 laari). See CLAUDE.md → Hard rules.
 
+## Status — July 2026: ALL SLICES 0–8 COMPLETE ✅
+
+Delivered with a green Pest suite (~240 tests) throughout. Notable deviations/decisions per
+slice are recorded in `PRD.md` Appendix B; as-built engineering guidance is in `../CLAUDE.md`.
+
+Work delivered **beyond** the original slices:
+
+- **MsgOwl SMS gateway driver** (`msgowl`) behind the `SmsSender` interface —
+  https://www.msgowl.com/docs; config in `config/sms.php` (no delivery-status callbacks yet).
+- **Real-workbook importer**: `import:register` reads the council's actual
+  "KULI BIN THAKUGE DHAFTHARU" xlsx directly (`WorkbookRegisterReader` — Thaana dates/rates,
+  grace derivation, CSR parsing, synthesised parcel identities), on top of the canonical CSV path.
+- **Full ADS/Jira UI workspace** (see `UI_DESIGN_PRD.md` §11): app shell with Create menu +
+  global search, leases slide-over with action bar, record-payment modal with live allocation,
+  modal create/edit forms on all registry pages, filter chips + pagination on every list page,
+  shared `<x-modal>`/`<x-pagination>`/`<x-toast>` components, toast flags.
+
+**Remaining backlog** (deliberately deferred, in priority order): supervisor-approval workflow
+for the §6.1 "A" actions → fine waivers + FR-RPT-06 fine report → historical ledger import
+(blocked on receipt-numbering decision, PRD §14.4.37) → email channel → proration →
+configurable usage types → per-lease reminder overrides → 2FA enrolment UI.
+
 ---
 
 ## Slice 0 — Project scaffold

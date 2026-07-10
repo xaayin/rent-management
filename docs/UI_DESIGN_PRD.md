@@ -331,5 +331,63 @@ clean (`<button class="btn-primary">`). Keep one definition per component; don't
 
 ---
 
+## 11. As-built implementation notes (July 2026)
+
+The system in this document is now implemented. Follow these as the working reality; where they
+refine §1–10, the as-built version wins.
+
+### 11.1 Where things live
+- **Tokens**: `resources/css/app.css` `@theme` (Tailwind v4 CSS-first — §9.1 realised verbatim,
+  plus a `--text-11 … --text-24` type scale). Inter is **self-hosted** via the Vite fonts plugin
+  and injected with `{{ Vite::fonts() }}` — no CDN.
+- **Component classes** (§5/§9.3): `@layer components` in the same file — `btn-primary`,
+  `btn-subtle`, `btn-danger`, `icon-btn`, `nav-item(-active)`, `loz` + six semantic modifiers,
+  `ava`, `chip`, `tab(-active)`, `th`/`td`, `fl`/`fl-req`/`fv`, `input`, `menu-row`, `stat`,
+  `pg(-active)`.
+- **Shared Blade components**: `<x-modal :title close :wide>` (§5.8), `<x-pagination
+  :paginator>` (§5.4 footer), `<x-toast />` (§5.9 — CSS `toast-auto` animation, no JS).
+- **Motion** (§7): `slideover-enter` / `overlay-enter` / `toast-auto` keyframes, all disabled
+  under `prefers-reduced-motion`.
+
+### 11.2 Patterns realised
+- **App shell** (§4.1): fixed 56px top bar (brand, global search → leases list, **Create**
+  `<details>` menu deep-linking with `?create=1`, user chip), 240px sidebar with icons, active
+  state, count pills (leases total, overdue invoices in danger), Settings group, workspace
+  footer card. Nav items render only for permitted roles (`@can`).
+- **List pages** (Leases, Invoices, Tenants, Properties — §5.4/§5.5): toolbar with a 300ms
+  debounced filter input + **chip-styled native `<select>` filters** + "Clear filters" +
+  right-aligned result count; saved-view tabs on Leases (All/Active/Overdue/Expiring);
+  issue-list table in a card (outer `overflow-hidden`, inner `overflow-x-auto` — content is
+  never clipped); `<x-pagination>` footer, 10 rows/page. Filters are Livewire `#[Url]`
+  properties (shareable URLs); every filter change resets to page 1; ordering has a
+  deterministic id tiebreak.
+- **Lease detail slide-over** (§5.7/§6.3): amount-due banner (danger/warning/success),
+  field grid, fine-rule card with the accrued-fine line ("show the maths"), recent invoices
+  with PDF links, activity timeline from the audit log, and a permission-gated action bar
+  (Record payment · Send reminder · Fine rule · Terminate · Edit). Esc and backdrop close;
+  Esc unwinds overlays top-first (payment modal → form modal → slide-over).
+- **Record payment modal** (§5.8/§6.4): invoice picker, amount/date/method/reference, and the
+  live breakdown card — outstanding rent & charges, fine **as of the chosen payment date**,
+  and the rent-first allocation of the entered amount, with an over-payment warning.
+- **Create/edit forms are modals** on all registry pages (480px; the lease form uses a wide
+  760px variant). Footer: `Cancel` (subtle) + one primary verb ("Create lease"/"Save changes").
+- **Toasts**: `session('status')` flash rendered by `<x-toast />` placed inside each Livewire
+  component root (renders on Livewire updates); message wording mirrors the action, e.g.
+  "Payment recorded · receipt 2026/001 issued".
+
+### 11.3 Deliberate deviations from §1–10
+- **Filter chips are native `<select>` elements** styled as chips, not custom dropdown menus —
+  identical look, free keyboard/screen-reader support (§8), no bespoke JS.
+- **The lease create/edit form is a modal**, not a full page (§4.2 reserved full-page for it);
+  the wide modal + scrolling backdrop handles the length comfortably.
+- **The Invoices list keeps an explicit Actions column** (PDF · Remind · Record payment)
+  instead of a `⋯` overflow menu — higher discoverability for the finance officer's core task.
+- **No Alpine-dependent behaviour**: overlays/menus use Livewire state, native `<details>`,
+  and CSS animation, so every page (including non-Livewire ones) behaves identically.
+- Row-click target on Leases opens the slide-over; other lists keep explicit buttons until
+  their detail slide-overs exist (Tenants/Properties are on the backlog).
+
+---
+
 *This is an original design system inspired by the conventions of the Atlassian Design System; it does
 not reproduce Atlassian's proprietary brand, logos, or typeface.*

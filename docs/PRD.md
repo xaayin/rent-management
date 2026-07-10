@@ -647,4 +647,53 @@ How today’s workbook columns map to the new data model, to guide migration. (D
 | Per-tenant ledger: month, receipt, paid date, amount        | Invoice + Payment  | period, receipt no, payment date, amount |
 | Fine header (flat/day) & fine columns (%/day, days, amount) | FineRule + Invoice | method, rate, late days, fine            |
 
-> **End of document.** This PRD is a draft for stakeholder review. Confirm the open questions in Section 14.4 and the sign-offs in the Document Control section before development begins.
+> **End of requirements.** Appendix B below records what was actually decided and delivered during development (July 2026). Requirements above remain the reference; Appendix B wins where the two differ, because it reflects reviewed, shipped behaviour.
+
+## Appendix B — As-built decisions & delivery status (July 2026)
+
+Phases 1–5 (§12) are delivered; the tenant self-service portal remains future. Engineering
+guidance lives in `../CLAUDE.md`; UI realisation in `UI_DESIGN_PRD.md` §11.
+
+### B.1 Changes to the assumed stack / locked decisions
+
+| Topic | PRD said | As built |
+|---|---|---|
+| Database | PostgreSQL (or MySQL) | **MySQL** (`rent_db`); tests on in-memory SQLite |
+| PDF engine | spatie/laravel-pdf or dompdf | **spatie/laravel-pdf + browsershot** (Chromium via puppeteer) |
+| SMS provider | to be supplied | **MsgOwl** driver implemented (`msgowl`), plus `log`/`null`; no delivery-status callbacks (their API doesn't document any — revisit) |
+| xlsx handling | — | **openspout/openspout** added to read the real workbook directly |
+
+### B.2 Provisional answers adopted for the §14.4 open questions
+
+| # | Question | Adopted answer (change only with Finance/Council sign-off) |
+|---|---|---|
+| 36 | SMS provider | MsgOwl (`rest.msgowl.com`); sender ID configured per account; delivery receipts unavailable |
+| 37 | Numbering continuation | **New sequences started at `YYYY/001`** for both invoices and receipts; historical ledger rows NOT imported (blocked on this decision) |
+| 38 | Allocation & partials | Rent (principal incl. CSR) first, then fine (`config/billing.php`); partial payments keep accruing fine **on the configured base** while any principal is outstanding; the fine **freezes** once principal is settled |
+| 39 | Tiered set date / partial month | Fine starts the day after due (+ allowance days); **each commenced month counts as one** (exact-month boundary stays in the earlier month, day-granular) |
+| 40 | CSR % of revenue | Declared revenue is a field on the lease; imported %-CSR leases carry the percentage with revenue unrecorded (warned at import) and bill 0 until it is recorded |
+| 41 | Retention | Unresolved — no purge routines built |
+
+### B.3 Requirement interpretations worth knowing
+
+- **§6.1 "A" (approval) cells** — modelled as paired permissions (base + "without approval").
+  The approval *workflow* is not built yet: terminate/waive/reverse are currently
+  **Supervisor-direct only**; Finance/Land-Officer initiation awaits the workflow.
+- **No system-wide default fine rule** (FR-FIN-02's default): a lease without a rule accrues
+  no fine, deliberately, until the council states a default.
+- **FR-TEN-04 duplicate warning** implemented stricter: national ID / company reg are unique.
+- **Manual "send reminder now"** (FR-NOT-08) is gated on `issue invoices` (the matrix has no
+  explicit row for it).
+- **Overpayments are rejected** — no tenant credit balances in this release.
+- **Import quality policy**: structural gaps reject the row; data gaps (missing mobile or
+  registry number, %-CSR without revenue) import **with warnings**. The register has no unique
+  parcel IDs, so parcel identity is synthesised (name + plot + size) and clashing active
+  parcels are split with a warning — staff assign real land numbers afterwards.
+
+### B.4 Deferred requirements (tracked backlog)
+
+Approvals workflow (§6.1 A-cells) · fine waivers + FR-RPT-06 fine report · historical ledger
+import (§B.2 #37) · email channel INT-EML-01 · proration FR-INV-08 · configurable usage types
+FR-PRP-04 · reminder overrides FR-NOT-04 · quiet hours beyond the 09:00 send · 2FA enrolment UI
+(FR-SEC-03; columns/trait ready) · property/lease document attachments FR-PRP-05/FR-LSE-07 ·
+data-retention routines (§14.4.41).
