@@ -1,0 +1,7 @@
+property_name,land_number,size_sqft,usage_type,tenant_name,registry_no,mobile,email,contact_person,agreement_number,agreement_date,start_date,rent_start_date,duration_years,expiry_date,rent_basis,rate_laari,area_sqft,flat_rent_mvr,due_day,grace_months,csr_type,csr_amount_mvr,csr_month,fine_method,fine_rate,status,notes
+Antenna Site,L-9101,2000,telecom_antenna,Dhiraagu PLC,C-250/2002,+9607771234,leases@dhiraagu.example,Aishath Nadhiya,AG-IMP-001,,2019-01-01,,15,,per_sqft,53,,,10,0,fixed_annual,9000,1,tiered_monthly,,active,
+Shop Boduthakurufaanu,L-9102,800,commercial,Abid Ibrahim,A118342,+9607789900,,,AG-IMP-002,,01/06/2021,,10,,flat,,,500.00,10,0,,,,percent_per_day,0.5,active,"Register header says MVR 3.75/day; ledger computes 0.5%/day — imported as 0.5%/day"
+Cafe Waterfront,L-9103,1200,cafe_restaurant,Hawwa Manike,A222333,+9607654321,,,AG-IMP-003,,2020-03-01,,5,,flat,,,750.00,10,0,,,,,,terminated,Vacated 2023
+Orphan Plot,,900,commercial,Ali Rasheed,A333444,+9607000111,,,AG-IMP-004,,2022-01-01,,10,,flat,,,300.00,,,,,,,,active,
+Antenna Site,L-9101,2000,telecom_antenna,Ooredoo Maldives,C-999/2010,+9607333222,,,AG-IMP-005,,2023-01-01,,10,,per_sqft,60,,,,,,,,,,active,
+Boat Shed 7,L-9106,600,boat_shed,Ibrahim Manik,A555666,+9607111222,,,AG-IMP-006,,31/31/2020,,10,,flat,,,200.00,,,,,,,,active,

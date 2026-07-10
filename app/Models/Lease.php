@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -50,6 +51,7 @@ class Lease extends Model
         'status',
         'terminated_on',
         'termination_reason',
+        'notes',
     ];
 
     /**
@@ -123,6 +125,12 @@ class Lease extends Model
     public function fineRules(): HasMany
     {
         return $this->hasMany(FineRule::class);
+    }
+
+    /** @return HasManyThrough<Payment, Invoice, $this> */
+    public function payments(): HasManyThrough
+    {
+        return $this->hasManyThrough(Payment::class, Invoice::class);
     }
 
     /**

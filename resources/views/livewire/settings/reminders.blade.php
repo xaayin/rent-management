@@ -2,12 +2,7 @@
     <nav class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Settings / Reminders</nav>
     <h1 class="mb-1 text-2xl font-semibold text-ink">Reminders &amp; SMS</h1>
     <p class="mb-6 text-[13px] text-muted">Configure when payment reminders are sent and what they say (PRD §4.8).</p>
-
-    @if (session('status'))
-        <div class="mb-4 rounded border border-success-fg/20 bg-success-bg px-3 py-2 text-[13px] text-success-fg">
-            {{ session('status') }}
-        </div>
-    @endif
+    <x-toast />
 
     <div class="mb-6 rounded-md border border-line bg-surface p-4 shadow-card">
         <p class="text-[13px] text-subtle">

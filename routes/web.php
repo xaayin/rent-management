@@ -5,9 +5,13 @@ declare(strict_types=1);
 use App\Enums\Permission;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\ReceiptPdfController;
+use App\Http\Controllers\ReportExportController;
+use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Livewire\Invoices\Index as InvoicesIndex;
 use App\Livewire\Leases\Index as LeasesIndex;
 use App\Livewire\Properties\Index as PropertiesIndex;
+use App\Livewire\Reports\Arrears as ArrearsReport;
+use App\Livewire\Reports\Income as IncomeReport;
 use App\Livewire\Settings\Reminders as ReminderSettings;
 use App\Livewire\Settings\UserManagement;
 use App\Livewire\Tenants\Index as TenantsIndex;
@@ -17,7 +21,27 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', '/dashboard');
 
 Route::middleware(['auth'])->group(function (): void {
-    Route::view('/dashboard', 'dashboard')->name('dashboard');
+    Route::get('/dashboard', DashboardIndex::class)
+        ->middleware('can:'.Permission::ViewReports->value)
+        ->name('dashboard');
+
+    Route::get('/reports/arrears', ArrearsReport::class)
+        ->middleware('can:'.Permission::ViewReports->value)
+        ->name('reports.arrears');
+
+    Route::get('/reports/income', IncomeReport::class)
+        ->middleware('can:'.Permission::ViewReports->value)
+        ->name('reports.income');
+
+    Route::get('/reports/arrears/export/{format}', [ReportExportController::class, 'arrears'])
+        ->whereIn('format', ['csv', 'pdf'])
+        ->middleware('can:'.Permission::ViewReports->value)
+        ->name('reports.arrears.export');
+
+    Route::get('/reports/income/export/{format}', [ReportExportController::class, 'income'])
+        ->whereIn('format', ['csv', 'pdf'])
+        ->middleware('can:'.Permission::ViewReports->value)
+        ->name('reports.income.export');
 
     Route::get('/properties', PropertiesIndex::class)
         ->middleware('can:'.Permission::ManageProperties->value)

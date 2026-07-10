@@ -7,22 +7,41 @@ namespace App\Livewire\Leases;
 use App\Enums\CsrType;
 use App\Enums\FineBase;
 use App\Enums\FineMethod;
+use App\Enums\InvoiceStatus;
 use App\Enums\LeaseStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\RentBasis;
+use App\Livewire\Concerns\InteractsWithPayments;
 use App\Models\FineRule;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\Tenant;
 use App\Support\Money;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
+use Spatie\Activitylog\Models\Activity;
 
 #[Layout('components.layouts.app')]
 class Index extends Component
 {
+    use InteractsWithPayments;
+
+    /** Saved-view tab (design PRD §5.5): all | active | overdue | expiring. */
+    #[Url]
+    public string $tab = 'all';
+
+    /** Free-text filter, also fed by the top-bar global search. */
+    #[Url]
+    public string $q = '';
+
+    /** The lease open in the detail slide-over (design PRD §4.2). */
+    public ?int $selectedId = null;
+
     public bool $showForm = false;
 
     public ?int $editingId = null;
@@ -97,13 +116,46 @@ class Index extends Component
     public function mount(): void
     {
         $this->authorize('viewAny', Lease::class);
+
+        // The top-bar Create menu deep-links here (design PRD §6.6).
+        if (request()->boolean('create')) {
+            $this->create();
+        }
     }
 
     public function create(): void
     {
         $this->authorize('create', Lease::class);
         $this->resetForm();
+        $this->selectedId = null;
         $this->showForm = true;
+    }
+
+    public function selectLease(int $id): void
+    {
+        $this->selectedId = Lease::findOrFail($id)->id;
+    }
+
+    public function closeLease(): void
+    {
+        $this->selectedId = null;
+        $this->resetPaymentForm();
+        $this->reset('terminatingId', 'termination_reason');
+        $this->resetFineForm();
+    }
+
+    /**
+     * Esc closes whichever overlay is on top (design PRD §5.7/§5.8).
+     */
+    public function closeOverlays(): void
+    {
+        if ($this->payingInvoiceId !== null) {
+            $this->resetPaymentForm();
+
+            return;
+        }
+
+        $this->closeLease();
     }
 
     public function edit(int $id): void
@@ -111,6 +163,7 @@ class Index extends Component
         $lease = Lease::findOrFail($id);
         $this->authorize('update', $lease);
 
+        $this->selectedId = null;
         $this->editingId = $lease->id;
         $this->agreement_number = $lease->agreement_number;
         $this->property_id = $lease->property_id;
@@ -325,14 +378,101 @@ class Index extends Component
     public function render(): View
     {
         return view('livewire.leases.index', [
-            'leases' => Lease::with(['property', 'tenant'])->latest()->get(),
+            'leases' => $this->leaseList(),
+            'detail' => $this->leaseDetail(),
+            'paying' => $this->buildPaymentPreview(),
             'properties' => Property::orderBy('name')->get(),
             'tenants' => Tenant::orderBy('name')->get(),
             'rentBases' => RentBasis::cases(),
             'csrTypes' => CsrType::cases(),
             'fineMethods' => FineMethod::cases(),
             'fineBases' => FineBase::cases(),
+            'methods' => PaymentMethod::cases(),
         ]);
+    }
+
+    /**
+     * The filtered issue-list rows with billing aggregates (design PRD §6.2).
+     *
+     * @return Collection<int, Lease>
+     */
+    private function leaseList(): Collection
+    {
+        $unpaid = [InvoiceStatus::Issued->value, InvoiceStatus::PartlyPaid->value, InvoiceStatus::Overdue->value];
+
+        return Lease::query()
+            ->with(['property', 'tenant'])
+            ->withCount([
+                'invoices as overdue_invoices_count' => fn ($query) => $query->where('status', InvoiceStatus::Overdue->value),
+            ])
+            ->withSum('invoices as invoiced_laari', 'total_laari')
+            ->withSum('payments as paid_laari', 'amount_laari')
+            ->withMin([
+                'invoices as next_due' => fn ($query) => $query->whereIn('status', $unpaid),
+            ], 'due_date')
+            ->withMin([
+                'invoices as oldest_overdue_due' => fn ($query) => $query->where('status', InvoiceStatus::Overdue->value),
+            ], 'due_date')
+            ->when($this->q !== '', function ($query): void {
+                $term = '%'.$this->q.'%';
+                $query->where(fn ($inner) => $inner
+                    ->where('agreement_number', 'like', $term)
+                    ->orWhereHas('tenant', fn ($t) => $t->where('name', 'like', $term))
+                    ->orWhereHas('property', fn ($p) => $p->where('name', 'like', $term)
+                        ->orWhere('land_number', 'like', $term)));
+            })
+            ->when($this->tab === 'active', fn ($query) => $query->where('status', LeaseStatus::Active->value))
+            ->when($this->tab === 'overdue', fn ($query) => $query->whereHas(
+                'invoices', fn ($i) => $i->where('status', InvoiceStatus::Overdue->value),
+            ))
+            ->when($this->tab === 'expiring', fn ($query) => $query
+                ->where('status', LeaseStatus::Active->value)
+                ->whereBetween('expiry_date', [today()->toDateString(), today()->addDays(90)->toDateString()]))
+            ->latest()
+            ->get();
+    }
+
+    /**
+     * Everything the slide-over shows for the selected lease.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function leaseDetail(): ?array
+    {
+        if ($this->selectedId === null) {
+            return null;
+        }
+
+        $lease = Lease::with(['property', 'tenant'])->find($this->selectedId);
+
+        if ($lease === null) {
+            return null;
+        }
+
+        $unpaid = $lease->invoices()
+            ->whereIn('status', [InvoiceStatus::Issued->value, InvoiceStatus::PartlyPaid->value, InvoiceStatus::Overdue->value])
+            ->orderBy('due_date')
+            ->get();
+
+        $oldestOverdue = $unpaid->firstWhere('status', InvoiceStatus::Overdue);
+
+        return [
+            'lease' => $lease,
+            'rule' => $lease->currentFineRule(),
+            'unpaid' => $unpaid,
+            'outstanding' => Money::fromLaari(max((int) $unpaid->sum(fn ($invoice) => $invoice->outstandingTotalLaari()), 0)),
+            'overdue_days' => $oldestOverdue !== null
+                ? (int) Carbon::parse($oldestOverdue->due_date)->diffInDays(today())
+                : 0,
+            'overdue_fine' => $oldestOverdue?->fine(),
+            'recent_invoices' => $lease->invoices()->orderByDesc('period_start')->take(6)->get(),
+            'activity' => Activity::query()
+                ->where('subject_type', Lease::class)
+                ->where('subject_id', $lease->id)
+                ->latest()
+                ->take(5)
+                ->get(),
+        ];
     }
 
     private function syncExpiry(): void

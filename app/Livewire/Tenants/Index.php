@@ -39,6 +39,11 @@ class Index extends Component
     public function mount(): void
     {
         $this->authorize('viewAny', Tenant::class);
+
+        // The top-bar Create menu deep-links here (design PRD §6.6).
+        if (request()->boolean('create')) {
+            $this->create();
+        }
     }
 
     public function create(): void

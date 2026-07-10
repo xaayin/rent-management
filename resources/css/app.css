@@ -53,4 +53,156 @@
     /* Elevation. */
     --shadow-card: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
     --shadow-overlay: 0 8px 16px -4px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+
+    /* Type scale (design PRD §3.2). */
+    --text-11: 11px;
+    --text-11--line-height: 16px;
+    --text-12: 12px;
+    --text-12--line-height: 16px;
+    --text-13: 13px;
+    --text-13--line-height: 20px;
+    --text-14: 14px;
+    --text-14--line-height: 20px;
+    --text-16: 16px;
+    --text-16--line-height: 24px;
+    --text-20: 20px;
+    --text-20--line-height: 24px;
+    --text-24: 24px;
+    --text-24--line-height: 28px;
+}
+
+/*
+ | Component classes (design PRD §5, §9.3) — one definition per component so
+ | Blade markup stays clean. Realised from design/ui-prototype.html.
+ */
+@layer components {
+    .btn-primary {
+        @apply inline-flex h-8 items-center gap-1.5 rounded bg-brand-500 px-3 text-13 font-medium text-white hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1 disabled:opacity-40;
+    }
+
+    .btn-subtle {
+        @apply inline-flex h-8 items-center gap-1.5 rounded border border-transparent bg-transparent px-3 text-13 font-medium text-subtle hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1;
+    }
+
+    .btn-danger {
+        @apply inline-flex h-8 items-center gap-1.5 rounded bg-danger-fg px-3 text-13 font-medium text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1;
+    }
+
+    .icon-btn {
+        @apply grid h-8 w-8 place-items-center rounded text-muted hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
+    }
+
+    .nav-item {
+        @apply flex h-9 items-center gap-2.5 rounded px-3 text-13 font-medium text-subtle hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
+
+        & svg {
+            @apply h-[18px] w-[18px] text-muted;
+        }
+    }
+
+    .nav-item-active {
+        @apply bg-selected text-brand-600;
+
+        & svg {
+            @apply text-brand-600;
+        }
+    }
+
+    .loz {
+        @apply inline-flex h-5 items-center rounded-sm px-1.5 text-11 font-bold uppercase tracking-wide;
+    }
+
+    .loz-neutral {
+        @apply bg-line-2 text-subtle;
+    }
+
+    .loz-success {
+        @apply bg-success-bg text-success-fg;
+    }
+
+    .loz-warning {
+        @apply bg-warning-bg text-warning-fg;
+    }
+
+    .loz-danger {
+        @apply bg-danger-bg text-danger-fg;
+    }
+
+    .loz-info {
+        @apply bg-info-bg text-info-fg;
+    }
+
+    .loz-discovery {
+        @apply bg-discovery-bg text-discovery-fg;
+    }
+
+    .ava {
+        @apply grid h-6 w-6 shrink-0 place-items-center rounded-full text-11 font-semibold text-white;
+    }
+
+    .tab {
+        @apply -mb-px h-9 border-b-2 border-transparent px-3 text-13 font-medium text-subtle hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
+    }
+
+    .tab-active {
+        @apply border-brand-500 text-brand-600;
+    }
+
+    .th {
+        @apply px-3 py-2.5 font-semibold;
+    }
+
+    .td {
+        @apply px-3 py-2.5 align-middle;
+    }
+
+    .fl {
+        @apply text-11 font-semibold uppercase tracking-wide text-muted;
+    }
+
+    .fl-req {
+        @apply text-12 font-semibold text-subtle;
+    }
+
+    .fv {
+        @apply mt-1 text-13 text-ink;
+    }
+
+    .input {
+        @apply h-9 w-full rounded border border-line bg-surface px-3 text-13 text-ink outline-none focus:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-300;
+    }
+
+    .menu-row {
+        @apply flex w-full items-center gap-3 rounded p-2 hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
+    }
+
+    .stat {
+        @apply rounded-md border border-line bg-surface px-4 py-3.5 shadow-card;
+    }
+}
+
+/* Motion (design PRD §7) — fast, purposeful, reduced-motion aware. */
+@keyframes so-slide-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes ov-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes toast-out {
+    0%, 82% { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+}
+
+.slideover-enter { animation: so-slide-in 0.18s ease; }
+.overlay-enter { animation: ov-fade-in 0.12s ease; }
+.toast-auto { animation: toast-out 4s ease forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+    .slideover-enter,
+    .overlay-enter,
+    .toast-auto { animation: none; }
 }

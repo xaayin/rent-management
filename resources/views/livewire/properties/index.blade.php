@@ -10,12 +10,7 @@
             New property
         </button>
     </div>
-
-    @if (session('status'))
-        <div class="mb-4 rounded border border-success-fg/20 bg-success-bg px-3 py-2 text-[13px] text-success-fg">
-            {{ session('status') }}
-        </div>
-    @endif
+    <x-toast />
 
     @if ($showForm)
         <div class="mb-8 rounded-md border border-line bg-surface p-6 shadow-card">

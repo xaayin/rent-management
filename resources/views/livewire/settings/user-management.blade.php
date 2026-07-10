@@ -2,12 +2,7 @@
     <nav class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Settings / Users</nav>
     <h1 class="mb-1 text-2xl font-semibold text-ink">Users &amp; roles</h1>
     <p class="mb-6 text-[13px] text-muted">Create council staff accounts and assign each a role (PRD §6.1).</p>
-
-    @if (session('status'))
-        <div class="mb-4 rounded border border-success-fg/20 bg-success-bg px-3 py-2 text-[13px] text-success-fg">
-            {{ session('status') }}
-        </div>
-    @endif
+    <x-toast />
 
     {{-- Create user --}}
     <div class="mb-8 rounded-md border border-line bg-surface p-6 shadow-card">

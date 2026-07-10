@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
@@ -44,8 +45,14 @@ it('rejects a wrong password', function () {
     $this->assertGuest();
 });
 
-it('shows the dashboard to an authenticated user', function () {
-    actingAs(User::factory()->create())
+it('shows the dashboard to an authenticated staff user', function () {
+    // The dashboard is gated on "view reports" (§6.1) — every role holds it.
+    $this->seed(RolesAndPermissionsSeeder::class);
+
+    $user = User::factory()->create();
+    $user->assignRole('auditor');
+
+    actingAs($user)
         ->get('/dashboard')
         ->assertOk()
         ->assertSee('Dashboard');

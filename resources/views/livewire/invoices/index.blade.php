@@ -19,12 +19,7 @@
     </div>
 
     @error('period') <p class="mb-3 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
-
-    @if (session('status'))
-        <div class="mb-4 rounded border border-success-fg/20 bg-success-bg px-3 py-2 text-[13px] text-success-fg">
-            {{ session('status') }}
-        </div>
-    @endif
+    <x-toast />
 
     <div class="overflow-x-auto rounded-md border border-line bg-surface shadow-card">
         <table class="w-full text-left text-sm">
