@@ -1,4 +1,4 @@
-<div wire:keydown.escape.window="cancel">
+<div wire:keydown.escape.window="closeOverlays">
     <div class="mb-6 flex items-start justify-between">
         <div>
             <nav class="mb-1.5 flex items-center gap-1.5 text-12 text-muted"><span>Registry</span><span>/</span><span class="text-subtle">Tenants</span></nav>
@@ -119,24 +119,22 @@
             </thead>
             <tbody>
                 @forelse ($tenants as $tenant)
-                    <tr class="border-b border-line-2 last:border-0 hover:bg-hover">
-                        <td class="px-4 py-3 font-medium text-ink">{{ $tenant->name }}</td>
+                    <tr wire:click="selectTenant({{ $tenant->id }})" class="cursor-pointer border-b border-line-2 last:border-0 hover:bg-hover {{ $selectedId === $tenant->id ? 'bg-selected' : '' }}">
                         <td class="px-4 py-3">
-                            @if ($tenant->isOrganisation())
-                                <span class="inline-flex items-center rounded-sm bg-discovery-bg px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-discovery-fg">Organisation</span>
-                            @else
-                                <span class="inline-flex items-center rounded-sm bg-info-bg px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-info-fg">Individual</span>
-                            @endif
+                            <span class="flex items-center gap-2">
+                                <span class="ava {{ ['bg-brand-500', 'bg-discovery-fg', 'bg-success-fg', 'bg-warning-fg', 'bg-brand-600', 'bg-danger-fg'][$tenant->id % 6] }}">
+                                    {{ collect(explode(' ', $tenant->name))->filter()->map(fn ($w) => mb_substr($w, 0, 1))->take(2)->implode('') }}
+                                </span>
+                                <span class="font-medium text-ink">{{ $tenant->name }}</span>
+                            </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="loz {{ $tenant->isOrganisation() ? 'loz-discovery' : 'loz-info' }}">{{ $tenant->type->label() }}</span>
                         </td>
                         <td class="px-4 py-3 text-subtle">{{ $tenant->registryNumber() }}</td>
                         <td class="px-4 py-3 text-subtle">{{ $tenant->mobile }}</td>
                         <td class="px-4 py-3 text-right tabular-nums text-ink">{{ $tenant->leases_count }}</td>
-                        <td class="px-4 py-3 text-right whitespace-nowrap">
-                            @can(\App\Enums\Permission::ViewReports->value)
-                                <a href="{{ route('tenants.statement', $tenant) }}" class="rounded px-2 py-1 text-[13px] font-medium text-subtle hover:bg-hover">Statement</a>
-                            @endcan
-                            <button wire:click="edit({{ $tenant->id }})" class="rounded px-2 py-1 text-[13px] font-medium text-brand-600 hover:bg-hover">Edit</button>
-                        </td>
+                        <td class="px-4 py-3 text-right text-muted">›</td>
                     </tr>
                 @empty
                     <tr><td colspan="6" class="px-4 py-8 text-center text-[13px] text-muted">
@@ -152,4 +150,192 @@
         </div>
         <x-pagination :paginator="$tenants" />
     </div>
+
+    {{-- ============ Slide-over: tenant detail with drill-down (design PRD §6) ============ --}}
+    @if ($detail !== null)
+        @php $t = $detail['tenant']; @endphp
+        <div wire:click="closeTenant" class="overlay-enter fixed inset-0 z-40 bg-ink/30" aria-hidden="true"></div>
+        <div class="slideover-enter fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-[560px] flex-col bg-surface shadow-overlay" role="dialog" aria-modal="true">
+            {{-- header --}}
+            <div class="flex items-start gap-3 border-b border-line-2 px-5 py-4">
+                <span class="ava mt-1 h-8 w-8 text-13 {{ ['bg-brand-500', 'bg-discovery-fg', 'bg-success-fg', 'bg-warning-fg', 'bg-brand-600', 'bg-danger-fg'][$t->id % 6] }}">
+                    {{ collect(explode(' ', $t->name))->filter()->map(fn ($w) => mb_substr($w, 0, 1))->take(2)->implode('') }}
+                </span>
+                <div class="min-w-0 flex-1">
+                    <div class="mb-0.5 flex items-center gap-2">
+                        <span class="loz {{ $t->isOrganisation() ? 'loz-discovery' : 'loz-info' }}">{{ $t->type->label() }}</span>
+                        @if ($t->registryNumber())
+                            <span class="text-12 text-muted">{{ $t->registryNumber() }}</span>
+                        @endif
+                    </div>
+                    <h2 class="truncate text-20 font-semibold text-ink">{{ $t->name }}</h2>
+                </div>
+                <button wire:click="closeTenant" class="icon-btn" aria-label="Close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {{-- action bar --}}
+            <div class="flex items-center gap-2 border-b border-line-2 bg-sunken px-5 py-2.5">
+                @can('view reports')
+                    <a href="{{ route('tenants.statement', $t) }}" class="btn-primary">Statement</a>
+                @endcan
+                <span class="ml-auto">
+                    @can('update', $t)
+                        <button wire:click="edit({{ $t->id }})" class="btn-subtle">Edit</button>
+                    @endcan
+                </span>
+            </div>
+
+            {{-- body --}}
+            <div class="flex-1 overflow-y-auto pb-6">
+                {{-- consolidated balance (FR-TEN-05) --}}
+                @if ($detail['balance']->isPositive())
+                    <div class="mx-5 mt-4 flex items-center justify-between rounded-md border border-danger-bg bg-danger-bg/40 px-4 py-3">
+                        <div>
+                            <p class="text-12 font-semibold uppercase tracking-wide text-danger-fg">Balance due · all leases</p>
+                            <p class="text-24 font-semibold tabular-nums text-danger-fg">{{ $detail['balance']->format() }}</p>
+                        </div>
+                        <span class="loz loz-danger">Outstanding</span>
+                    </div>
+                @else
+                    <div class="mx-5 mt-4 flex items-center justify-between rounded-md border border-success-bg bg-success-bg/40 px-4 py-3">
+                        <div>
+                            <p class="text-12 font-semibold uppercase tracking-wide text-success-fg">Balance due · all leases</p>
+                            <p class="text-24 font-semibold tabular-nums text-success-fg">MVR 0.00</p>
+                        </div>
+                        <span class="loz loz-success">All settled</span>
+                    </div>
+                @endif
+
+                {{-- contact details --}}
+                <div class="grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4">
+                    <div><p class="fl">Mobile</p><p class="fv">{{ $t->mobile ?: '—' }}</p></div>
+                    <div><p class="fl">Email</p><p class="fv">{{ $t->email ?: '—' }}</p></div>
+                    <div>
+                        <p class="fl">SMS reminders</p>
+                        <span class="loz mt-1 {{ $t->canReceiveSms() ? 'loz-success' : 'loz-warning' }}">{{ $t->canReceiveSms() ? 'Enabled' : ($t->sms_opt_out ? 'Opted out' : 'No mobile') }}</span>
+                    </div>
+                    @if ($t->isOrganisation() && $t->contact_person)
+                        <div><p class="fl">Contact person</p><p class="fv">{{ $t->contact_person }}</p></div>
+                    @endif
+                    @if ($t->postal_address)
+                        <div class="col-span-2"><p class="fl">Postal address</p><p class="fv">{{ $t->postal_address }}</p></div>
+                    @endif
+                </div>
+
+                {{-- leases → invoices → payments drill-down --}}
+                <div class="px-5 pb-2">
+                    <p class="mb-2 text-13 font-semibold text-ink">Leases ({{ $detail['leases']->count() }})</p>
+                    @if ($detail['leases']->isEmpty())
+                        <p class="text-13 text-muted">No leases yet for this tenant.</p>
+                    @else
+                        <div class="overflow-hidden rounded-md border border-line">
+                            @foreach ($detail['leases'] as $lease)
+                                @php $leaseOutstanding = max((int) $lease->invoiced_laari - (int) $lease->paid_laari, 0); @endphp
+                                <button wire:click="toggleLease({{ $lease->id }})"
+                                    class="flex w-full items-center gap-2 border-b border-line-2 px-3 py-2.5 text-left text-13 last:border-0 hover:bg-hover {{ $expandedLeaseId === $lease->id ? 'bg-sunken' : '' }}">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        class="shrink-0 text-muted transition-transform {{ $expandedLeaseId === $lease->id ? 'rotate-90' : '' }}"><path d="m9 18 6-6-6-6"/></svg>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block truncate font-medium text-ink">{{ $lease->property->name }}</span>
+                                        <span class="block text-12 text-muted">{{ $lease->agreement_number }} · {{ $lease->monthlyRent()->format() }}/mo</span>
+                                    </span>
+                                    <span class="loz {{ match ($lease->status) {
+                                        \App\Enums\LeaseStatus::Active => 'loz-success',
+                                        \App\Enums\LeaseStatus::Terminated => 'loz-danger',
+                                        default => 'loz-neutral',
+                                    } }}">{{ $lease->status->label() }}</span>
+                                    <span class="tabular-nums {{ $leaseOutstanding > 0 ? 'font-medium text-danger-fg' : 'text-subtle' }}">
+                                        {{ \App\Support\Money::fromLaari($leaseOutstanding)->format() }}
+                                    </span>
+                                </button>
+
+                                @if ($expandedLeaseId === $lease->id)
+                                    <div class="border-b border-line-2 bg-sunken px-3 py-2 last:border-0">
+                                        @if ($detail['invoices']->isEmpty())
+                                            <p class="px-6 py-2 text-12 text-muted">No invoices yet on this lease.</p>
+                                        @else
+                                            @foreach ($detail['invoices'] as $invoice)
+                                                <button wire:click="toggleInvoice({{ $invoice->id }})"
+                                                    class="flex w-full items-center gap-2 rounded px-2 py-2 pl-6 text-left text-13 hover:bg-hover {{ $expandedInvoiceId === $invoice->id ? 'bg-hover' : '' }}">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                        class="shrink-0 text-muted transition-transform {{ $expandedInvoiceId === $invoice->id ? 'rotate-90' : '' }}"><path d="m9 18 6-6-6-6"/></svg>
+                                                    <span class="min-w-0 flex-1">
+                                                        <span class="font-medium text-ink">{{ $invoice->number }}</span>
+                                                        <span class="text-12 text-muted"> · {{ $invoice->periodLabel() }}</span>
+                                                    </span>
+                                                    <span class="loz {{ match ($invoice->status) {
+                                                        \App\Enums\InvoiceStatus::Paid => 'loz-success',
+                                                        \App\Enums\InvoiceStatus::PartlyPaid => 'loz-warning',
+                                                        \App\Enums\InvoiceStatus::Overdue => 'loz-danger',
+                                                        default => 'loz-info',
+                                                    } }}">{{ $invoice->status->label() }}</span>
+                                                    <span class="tabular-nums text-ink">{{ $invoice->total()->format() }}</span>
+                                                    @can('view reports')
+                                                        <a href="{{ route('invoices.pdf', $invoice) }}" target="_blank" wire:click.stop
+                                                            class="icon-btn h-6 w-6" title="Invoice PDF" aria-label="Invoice PDF">
+                                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                                                        </a>
+                                                    @endcan
+                                                </button>
+
+                                                @if ($expandedInvoiceId === $invoice->id)
+                                                    <div class="mb-1 ml-11 mr-2 rounded border border-line-2 bg-surface">
+                                                        @forelse ($detail['payments'] as $payment)
+                                                            <div class="flex items-center gap-2 border-b border-line-2 px-3 py-2 text-12 last:border-0">
+                                                                <span class="min-w-0 flex-1">
+                                                                    @if ($payment->isReversal())
+                                                                        <span class="font-medium text-danger-fg">Reversal of {{ $payment->reference }}</span>
+                                                                        <span class="block text-muted">{{ $payment->reversal_reason }}</span>
+                                                                    @else
+                                                                        <span class="font-medium text-ink">Receipt {{ $payment->receipt_number }}</span>
+                                                                        <span class="block text-muted">{{ $payment->payment_date->format('j M Y') }} · {{ $payment->method->label() }} · rent {{ $payment->principalAllocated()->format() }} · fine {{ $payment->fineAllocated()->format() }}</span>
+                                                                    @endif
+                                                                </span>
+                                                                <span class="tabular-nums {{ $payment->amount_laari < 0 ? 'text-danger-fg' : 'text-ink' }}">{{ $payment->amount()->format() }}</span>
+                                                                @if (! $payment->isReversal())
+                                                                    @can('view reports')
+                                                                        <a href="{{ route('payments.receipt', $payment) }}" target="_blank" class="icon-btn h-6 w-6" title="Receipt PDF" aria-label="Receipt PDF">
+                                                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+                                                                        </a>
+                                                                    @endcan
+                                                                @endif
+                                                            </div>
+                                                        @empty
+                                                            <p class="px-3 py-2 text-12 text-muted">No payments recorded on this invoice.</p>
+                                                        @endforelse
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        @endif
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
+                {{-- recent messages (design PRD §6 "message history") --}}
+                <div class="px-5 py-4">
+                    <p class="mb-2 text-13 font-semibold text-ink">Recent messages</p>
+                    @if ($detail['messages']->isEmpty())
+                        <p class="text-13 text-muted">No SMS reminders sent yet.</p>
+                    @else
+                        <ul class="space-y-2 text-13">
+                            @foreach ($detail['messages'] as $log)
+                                <li class="flex items-start gap-2">
+                                    <span class="loz mt-0.5 {{ $log->status === \App\Enums\NotificationStatus::Sent ? 'loz-success' : 'loz-danger' }}">{{ $log->status->label() }}</span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block truncate text-subtle">{{ $log->content }}</span>
+                                        <span class="text-12 text-muted">{{ $log->created_at->format('j M Y · H:i') }} · {{ $log->recipient }}</span>
+                                    </span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

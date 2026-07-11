@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace App\Livewire\Tenants;
 
 use App\Enums\TenantType;
+use App\Models\Invoice;
+use App\Models\NotificationLog;
+use App\Models\Payment;
 use App\Models\Tenant;
+use App\Support\Money;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -25,6 +29,14 @@ class Index extends Component
     /** Tenant-type chip (design PRD §5.5). */
     #[Url]
     public string $typeFilter = '';
+
+    /** The tenant open in the detail slide-over (design PRD §6 "Tenant detail"). */
+    public ?int $selectedId = null;
+
+    /** Drill-down state inside the slide-over: lease → invoices → payments. */
+    public ?int $expandedLeaseId = null;
+
+    public ?int $expandedInvoiceId = null;
 
     public bool $showForm = false;
 
@@ -80,6 +92,42 @@ class Index extends Component
     {
         $this->reset('q', 'typeFilter');
         $this->resetPage();
+    }
+
+    public function selectTenant(int $id): void
+    {
+        $this->selectedId = Tenant::findOrFail($id)->id;
+        $this->reset('expandedLeaseId', 'expandedInvoiceId');
+    }
+
+    public function closeTenant(): void
+    {
+        $this->reset('selectedId', 'expandedLeaseId', 'expandedInvoiceId');
+    }
+
+    public function toggleLease(int $leaseId): void
+    {
+        $this->expandedLeaseId = $this->expandedLeaseId === $leaseId ? null : $leaseId;
+        $this->expandedInvoiceId = null;
+    }
+
+    public function toggleInvoice(int $invoiceId): void
+    {
+        $this->expandedInvoiceId = $this->expandedInvoiceId === $invoiceId ? null : $invoiceId;
+    }
+
+    /**
+     * Esc closes whichever overlay is on top (design PRD §5.7/§5.8).
+     */
+    public function closeOverlays(): void
+    {
+        if ($this->showForm) {
+            $this->cancel();
+
+            return;
+        }
+
+        $this->closeTenant();
     }
 
     public function edit(int $id): void
@@ -169,7 +217,55 @@ class Index extends Component
                 ->orderBy('id') // deterministic tiebreak for equal names
                 ->paginate(10),
             'types' => TenantType::cases(),
+            'detail' => $this->tenantDetail(),
         ]);
+    }
+
+    /**
+     * Everything the tenant slide-over shows: contacts, consolidated balance,
+     * leases with per-lease balances, and the drill-down invoice/payment
+     * levels (design PRD §6 "Tenant detail", FR-TEN-05).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function tenantDetail(): ?array
+    {
+        if ($this->selectedId === null) {
+            return null;
+        }
+
+        $tenant = Tenant::find($this->selectedId);
+
+        if ($tenant === null) {
+            return null;
+        }
+
+        $leases = $tenant->leases()
+            ->with('property')
+            ->withSum('invoices as invoiced_laari', 'total_laari')
+            ->withSum('payments as paid_laari', 'amount_laari')
+            ->latest()
+            ->get();
+
+        return [
+            'tenant' => $tenant,
+            'leases' => $leases,
+            'balance' => Money::fromLaari(max(
+                (int) $leases->sum(fn ($lease): int => (int) $lease->invoiced_laari - (int) $lease->paid_laari),
+                0,
+            )),
+            'invoices' => $this->expandedLeaseId !== null
+                ? Invoice::query()->where('lease_id', $this->expandedLeaseId)->orderByDesc('period_start')->get()
+                : collect(),
+            'payments' => $this->expandedInvoiceId !== null
+                ? Payment::query()->where('invoice_id', $this->expandedInvoiceId)->orderBy('id')->get()
+                : collect(),
+            'messages' => NotificationLog::query()
+                ->where('tenant_id', $tenant->id)
+                ->latest()
+                ->take(5)
+                ->get(),
+        ];
     }
 
     private function resetForm(): void
