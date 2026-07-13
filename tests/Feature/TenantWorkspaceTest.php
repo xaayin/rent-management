@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\PaymentMethod;
 use App\Livewire\Tenants\Index as TenantsIndex;
 use App\Models\Lease;
+use App\Models\NotificationLog;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Billing\InvoiceGenerator;
@@ -72,10 +73,12 @@ it('drills down from lease to invoices to payments', function () {
         ->call('toggleLease', $lease->id)
         ->assertSee($invoice->number)
         ->assertSee('Partly paid')
-        ->assertDontSee($payment->receipt_number)
+        // "Receipt …" prefix — receipt and invoice numbers share the YYYY/NNN
+        // format, so the bare number would match the visible invoice.
+        ->assertDontSee('Receipt '.$payment->receipt_number)
         // Level 2 → the invoice's payments appear with the allocation split.
         ->call('toggleInvoice', $invoice->id)
-        ->assertSee($payment->receipt_number)
+        ->assertSee('Receipt '.$payment->receipt_number)
         ->assertSee('MVR 200.00')
         // Toggling the lease closed collapses everything.
         ->call('toggleLease', $lease->id)
@@ -85,7 +88,7 @@ it('drills down from lease to invoices to payments', function () {
 it('shows recent SMS messages in the tenant detail', function () {
     [$tenant, , $invoice] = tenantWithDrilldown();
 
-    \App\Models\NotificationLog::create([
+    NotificationLog::create([
         'tenant_id' => $tenant->id,
         'invoice_id' => $invoice->id,
         'kind' => 'manual',

@@ -12,6 +12,7 @@ use App\Livewire\Leases\Index as LeasesIndex;
 use App\Livewire\Properties\Index as PropertiesIndex;
 use App\Livewire\Reports\Arrears as ArrearsReport;
 use App\Livewire\Reports\Income as IncomeReport;
+use App\Livewire\Settings\Profile as ProfileSettings;
 use App\Livewire\Settings\Reminders as ReminderSettings;
 use App\Livewire\Settings\UserManagement;
 use App\Livewire\Tenants\Index as TenantsIndex;
@@ -21,6 +22,9 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', '/dashboard');
 
 Route::middleware(['auth'])->group(function (): void {
+    // Every signed-in user manages their own account here (no role gate).
+    Route::get('/settings/profile', ProfileSettings::class)->name('settings.profile');
+
     Route::get('/dashboard', DashboardIndex::class)
         ->middleware('can:'.Permission::ViewReports->value)
         ->name('dashboard');

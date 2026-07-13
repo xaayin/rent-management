@@ -77,8 +77,11 @@
                 </details>
             @endif
 
-            <span class="hidden text-13 text-subtle md:block">{{ $user?->name }}</span>
-            <span class="grid h-7 w-7 place-items-center rounded-full bg-discovery-fg text-12 font-semibold text-white">{{ $initials }}</span>
+            <a href="{{ route('settings.profile') }}" title="My account"
+                class="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 {{ request()->routeIs('settings.profile') ? 'bg-selected' : '' }}">
+                <span class="hidden text-13 text-subtle md:block">{{ $user?->name }}</span>
+                <span class="grid h-7 w-7 place-items-center rounded-full bg-discovery-fg text-12 font-semibold text-white">{{ $initials }}</span>
+            </a>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" class="btn-subtle">Sign out</button>

@@ -35,9 +35,9 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::redirectUserForTwoFactorAuthenticationUsing(RedirectIfTwoFactorAuthenticatable::class);
 
-        // View bindings. The two-factor enrolment/challenge UI is completed in
-        // Slice 1 (user & role management); the login screen is all Slice 0 needs.
+        // View bindings.
         Fortify::loginView(fn () => view('auth.login'));
+        Fortify::twoFactorChallengeView(fn () => view('auth.two-factor-challenge'));
 
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
