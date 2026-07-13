@@ -4,30 +4,43 @@
     <meta charset="utf-8">
     <title>Invoice {{ $invoice->number }}</title>
     <style>
+        /* Kanduhulhudhoo Council letterhead palette (design/council-ds). */
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #172B4D; font-size: 13px; padding: 40px; }
-        h1 { font-size: 22px; margin-bottom: 2px; }
-        .muted { color: #626F86; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 28px; border-bottom: 2px solid #172B4D; padding-bottom: 16px; }
+        body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #12203A; font-size: 13px; padding: 40px; }
+        h1 { font-size: 22px; margin-bottom: 2px; letter-spacing: -0.02em; }
+        .muted { color: #6B7888; }
+        .letterhead { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 2px solid #1D2B45; padding-bottom: 16px; }
+        .letterhead img { height: 52px; }
+        .contact { text-align: right; font-size: 11px; color: #6B7888; line-height: 1.55; }
+        .contact strong { color: #12203A; }
+        .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; }
         .header .right { text-align: right; }
-        .badge { display: inline-block; padding: 2px 8px; border: 1px solid #172B4D; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+        .badge { display: inline-block; padding: 2px 10px; border: 1px solid #1D2B45; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
         .parties { display: flex; gap: 40px; margin-bottom: 24px; }
-        .parties h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #626F86; margin-bottom: 4px; }
+        .parties h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6B7888; margin-bottom: 4px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #626F86; border-bottom: 1px solid #DFE1E6; padding: 6px 8px; }
-        td { padding: 8px; border-bottom: 1px solid #EBECF0; vertical-align: top; }
+        th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #9AA6B4; border-bottom: 1px solid #DBE1E8; padding: 6px 8px; font-weight: 700; }
+        td { padding: 8px; border-bottom: 1px solid #E6EAEF; vertical-align: top; }
         .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-        .total-row td { border-top: 2px solid #172B4D; border-bottom: none; font-weight: 700; font-size: 15px; }
-        .breakdown { font-size: 12px; color: #626F86; margin-top: 4px; }
+        .total-row td { border-top: 2px solid #1D2B45; border-bottom: none; font-weight: 700; font-size: 15px; }
+        .breakdown { font-size: 12px; color: #6B7888; margin-top: 4px; }
         .breakdown li { margin-left: 16px; }
-        .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #DFE1E6; font-size: 12px; color: #626F86; }
+        .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #DBE1E8; font-size: 12px; color: #6B7888; }
     </style>
 </head>
 <body>
+    <div class="letterhead">
+        <img src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('images/council/lockup-horizontal-color.png'))) }}" alt="Secretariat of the Kanduhulhudhoo Council">
+        <div class="contact">
+            <p><strong>Secretariat of the Kanduhulhudhoo Council</strong></p>
+            <p>Ga. Kanduhulhudhoo, Republic of Maldives</p>
+            <p>Tel 6820020 · info@kanduhulhudhoo.gov.mv</p>
+        </div>
+    </div>
+
     <div class="header">
         <div>
-            <h1>{{ config('app.name') }}</h1>
-            <p class="muted">Council Land &amp; Property Lease Management</p>
+            <p class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em">Land &amp; Property Lease Management</p>
         </div>
         <div class="right">
             <h1>Invoice {{ $invoice->number }}</h1>

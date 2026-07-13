@@ -69,18 +69,18 @@
         <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
             <thead>
-                <tr class="border-b border-line bg-sunken text-[11px] uppercase tracking-wide text-muted">
-                    <th class="px-4 py-2 font-semibold">Number</th>
-                    <th class="px-4 py-2 font-semibold">Tenant</th>
-                    <th class="px-4 py-2 font-semibold">Property</th>
-                    <th class="px-4 py-2 font-semibold">Period</th>
-                    <th class="px-4 py-2 font-semibold">Due</th>
-                    <th class="px-4 py-2 text-right font-semibold">Rent</th>
-                    <th class="px-4 py-2 text-right font-semibold">Charges</th>
-                    <th class="px-4 py-2 text-right font-semibold">Fine</th>
-                    <th class="px-4 py-2 text-right font-semibold">Total</th>
-                    <th class="px-4 py-2 font-semibold">Status</th>
-                    <th class="px-4 py-2 text-right font-semibold">Actions</th>
+                <tr class="border-b border-line">
+                    <th class="th text-left">Number</th>
+                    <th class="th text-left">Tenant</th>
+                    <th class="th text-left">Property</th>
+                    <th class="th text-left">Period</th>
+                    <th class="th text-left">Due</th>
+                    <th class="th text-right">Rent</th>
+                    <th class="th text-right">Charges</th>
+                    <th class="th text-right">Fine</th>
+                    <th class="th text-right">Total</th>
+                    <th class="th text-left">Status</th>
+                    <th class="th text-right">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -95,21 +95,21 @@
                                 <span class="loz loz-info ml-1">{{ $invoice->period_months }} mo</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3 tabular-nums text-subtle">{{ $invoice->due_date->toDateString() }}</td>
-                        <td class="px-4 py-3 text-right tabular-nums text-ink">{{ $invoice->rent()->format() }}</td>
-                        <td class="px-4 py-3 text-right tabular-nums text-subtle">{{ $invoice->charges()->format() }}</td>
-                        <td class="px-4 py-3 text-right tabular-nums {{ $invoice->fine_laari > 0 ? 'font-medium text-danger-fg' : 'text-subtle' }}">{{ $invoice->fine()->format() }}</td>
-                        <td class="px-4 py-3 text-right font-medium tabular-nums text-ink">{{ $invoice->total()->format() }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap tabular-nums text-subtle">{{ $invoice->due_date->format('j M Y') }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right tabular-nums text-ink">{{ $invoice->rent()->format() }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right tabular-nums text-subtle">{{ $invoice->charges()->format() }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right tabular-nums {{ $invoice->fine_laari > 0 ? 'font-medium text-danger-fg' : 'text-subtle' }}">{{ $invoice->fine()->format() }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right font-medium tabular-nums text-ink">{{ $invoice->total()->format() }}</td>
                         <td class="px-4 py-3">
                             @php
                                 $badge = match ($invoice->status) {
-                                    \App\Enums\InvoiceStatus::Paid => 'bg-success-bg text-success-fg',
-                                    \App\Enums\InvoiceStatus::PartlyPaid => 'bg-warning-bg text-warning-fg',
-                                    \App\Enums\InvoiceStatus::Overdue => 'bg-danger-bg text-danger-fg',
-                                    \App\Enums\InvoiceStatus::Issued => 'bg-info-bg text-info-fg',
+                                    \App\Enums\InvoiceStatus::Paid => 'loz-success',
+                                    \App\Enums\InvoiceStatus::PartlyPaid => 'loz-warning',
+                                    \App\Enums\InvoiceStatus::Overdue => 'loz-danger',
+                                    \App\Enums\InvoiceStatus::Issued => 'loz-info',
                                 };
                             @endphp
-                            <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide {{ $badge }}">{{ $invoice->status->label() }}</span>
+                            <span class="loz {{ $badge }}">{{ $invoice->status->label() }}</span>
                         </td>
                         <td class="px-4 py-3">
                             <span class="flex items-center justify-end gap-0.5">
@@ -150,7 +150,7 @@
     {{-- ============ Slide-over: record payment (design PRD §5.7/§5.8) ============ --}}
     @if ($paying !== null)
         @php $payingInvoice = $paying['invoice']; @endphp
-        <div wire:click="cancelPayment" class="overlay-enter fixed inset-0 z-40 bg-ink/30" aria-hidden="true"></div>
+        <div wire:click="cancelPayment" class="overlay-enter fixed inset-0 z-40 bg-navy/40 backdrop-blur-[2px]" aria-hidden="true"></div>
         <div class="slideover-enter fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-[560px] flex-col bg-surface shadow-overlay" role="dialog" aria-modal="true">
             {{-- header --}}
             <div class="flex items-start gap-3 border-b border-line-2 px-5 py-4">
@@ -218,7 +218,7 @@
                 {{-- payments on this invoice --}}
                 @if ($payingInvoice->payments->isNotEmpty())
                     <div>
-                        <p class="mb-2 text-13 font-semibold text-ink">Payments on this invoice</p>
+                        <p class="card-title mb-2">Payments on this invoice</p>
                         <div class="overflow-hidden rounded-md border border-line">
                             <table class="w-full text-13">
                                 <tbody class="divide-y divide-line-2">

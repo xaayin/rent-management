@@ -30,7 +30,7 @@
         <div class="overflow-x-auto">
             <table class="w-full min-w-[820px] text-13">
                 <thead>
-                    <tr class="border-b border-line bg-sunken text-11 uppercase tracking-wide text-muted">
+                    <tr class="border-b border-line">
                         <th class="th text-left">Invoice</th>
                         <th class="th text-left">Tenant</th>
                         <th class="th text-left">Property</th>

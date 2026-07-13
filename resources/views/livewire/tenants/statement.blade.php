@@ -1,5 +1,5 @@
 <div>
-    <nav class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Registry / Tenants / Statement</nav>
+    <nav class="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-muted">Registry / Tenants / Statement</nav>
     <div class="mb-6 flex items-start justify-between">
         <div>
             <h1 class="text-2xl font-semibold text-ink">Account statement</h1>
@@ -10,20 +10,20 @@
             </p>
         </div>
         <div class="rounded-md border border-line bg-surface px-4 py-3 text-right shadow-card">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Balance due</p>
-            <p class="text-xl font-semibold tabular-nums {{ $balance->isPositive() ? 'text-danger-fg' : 'text-success-fg' }}">{{ $balance->format() }}</p>
+            <p class="text-[11px] font-bold uppercase tracking-[0.08em] text-muted">Balance due</p>
+            <p class="font-display text-24 font-extrabold tracking-[-0.02em] tabular-nums {{ $balance->isPositive() ? 'text-danger-fg' : 'text-success-fg' }}">{{ $balance->format() }}</p>
         </div>
     </div>
 
     <div class="overflow-x-auto rounded-md border border-line bg-surface shadow-card">
         <table class="w-full text-left text-sm">
             <thead>
-                <tr class="border-b border-line bg-sunken text-[11px] uppercase tracking-wide text-muted">
-                    <th class="px-4 py-2 font-semibold">Date</th>
-                    <th class="px-4 py-2 font-semibold">Description</th>
-                    <th class="px-4 py-2 text-right font-semibold">Debit</th>
-                    <th class="px-4 py-2 text-right font-semibold">Credit</th>
-                    <th class="px-4 py-2 text-right font-semibold">Balance</th>
+                <tr class="border-b border-line">
+                    <th class="th text-left">Date</th>
+                    <th class="th text-left">Description</th>
+                    <th class="th text-right">Debit</th>
+                    <th class="th text-right">Credit</th>
+                    <th class="th text-right">Balance</th>
                 </tr>
             </thead>
             <tbody>

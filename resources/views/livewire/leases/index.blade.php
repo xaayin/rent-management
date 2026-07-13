@@ -225,7 +225,7 @@
         <div class="overflow-x-auto">
             <table class="w-full min-w-[820px] text-13">
                 <thead>
-                    <tr class="border-b border-line bg-sunken text-11 uppercase tracking-wide text-muted">
+                    <tr class="border-b border-line">
                         <th class="th text-left">Property</th>
                         <th class="th text-left">Tenant</th>
                         <th class="th text-left">Type</th>
@@ -294,7 +294,7 @@
     {{-- ============ Slide-over: lease detail (design PRD §5.7, §6.3) ============ --}}
     @if ($detail !== null)
         @php $lease = $detail['lease']; @endphp
-        <div wire:click="closeLease" class="overlay-enter fixed inset-0 z-40 bg-ink/30" aria-hidden="true"></div>
+        <div wire:click="closeLease" class="overlay-enter fixed inset-0 z-40 bg-navy/40 backdrop-blur-[2px]" aria-hidden="true"></div>
         <div class="slideover-enter fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-[560px] flex-col bg-surface shadow-overlay" role="dialog" aria-modal="true">
             {{-- header --}}
             <div class="flex items-start gap-3 border-b border-line-2 px-5 py-4">
@@ -310,7 +310,7 @@
             </div>
 
             {{-- action bar --}}
-            <div class="flex items-center gap-2 border-b border-line-2 bg-sunken px-5 py-2.5">
+            <div class="flex flex-wrap items-center gap-2 border-b border-line-2 bg-sunken px-5 py-2.5">
                 @can('create', \App\Models\Payment::class)
                     @if ($detail['unpaid']->isNotEmpty())
                         <button wire:click="startPayment({{ $detail['unpaid']->first()->id }})" class="btn-primary">Record payment</button>
@@ -343,8 +343,8 @@
                 @if ($detail['outstanding']->isPositive())
                     <div class="mx-5 mt-4 flex items-center justify-between rounded-md border px-4 py-3 {{ $detail['overdue_days'] > 0 ? 'border-danger-bg bg-danger-bg/40' : 'border-warning-bg bg-warning-bg/40' }}">
                         <div>
-                            <p class="text-12 font-semibold uppercase tracking-wide {{ $detail['overdue_days'] > 0 ? 'text-danger-fg' : 'text-warning-fg' }}">Amount due</p>
-                            <p class="text-24 font-semibold tabular-nums {{ $detail['overdue_days'] > 0 ? 'text-danger-fg' : 'text-warning-fg' }}">{{ $detail['outstanding']->format() }}</p>
+                            <p class="text-12 font-bold uppercase tracking-[0.08em] {{ $detail['overdue_days'] > 0 ? 'text-danger-fg' : 'text-warning-fg' }}">Amount due</p>
+                            <p class="font-display text-24 font-extrabold tracking-[-0.02em] tabular-nums {{ $detail['overdue_days'] > 0 ? 'text-danger-fg' : 'text-warning-fg' }}">{{ $detail['outstanding']->format() }}</p>
                         </div>
                         @if ($detail['overdue_days'] > 0)
                             <span class="loz loz-danger">Overdue {{ $detail['overdue_days'] }} days</span>
@@ -355,8 +355,8 @@
                 @else
                     <div class="mx-5 mt-4 flex items-center justify-between rounded-md border border-success-bg bg-success-bg/40 px-4 py-3">
                         <div>
-                            <p class="text-12 font-semibold uppercase tracking-wide text-success-fg">Amount due</p>
-                            <p class="text-24 font-semibold tabular-nums text-success-fg">MVR 0.00</p>
+                            <p class="text-12 font-bold uppercase tracking-[0.08em] text-success-fg">Amount due</p>
+                            <p class="font-display text-24 font-extrabold tracking-[-0.02em] tabular-nums text-success-fg">MVR 0.00</p>
                         </div>
                         <span class="loz loz-success">All settled</span>
                     </div>
@@ -415,7 +415,7 @@
                 {{-- fine rule card (show the maths — design PRD goal 3) --}}
                 <div class="mx-5 mb-4 rounded-md border border-line bg-surface">
                     <div class="flex h-10 items-center justify-between border-b border-line-2 px-4">
-                        <p class="text-13 font-semibold text-ink">Fine rule</p>
+                        <p class="card-title">Fine rule</p>
                         @if ($detail['rule'])
                             <span class="loz loz-info">{{ $detail['rule']->method->label() }}</span>
                         @else
@@ -517,7 +517,7 @@
 
                 {{-- recent invoices --}}
                 <div class="px-5 pb-2">
-                    <p class="mb-2 text-13 font-semibold text-ink">Recent invoices</p>
+                    <p class="card-title mb-2">Recent invoices</p>
                     @if ($detail['recent_invoices']->isEmpty())
                         <p class="text-13 text-muted">No invoices yet for this lease.</p>
                     @else
@@ -554,7 +554,7 @@
 
                 {{-- activity --}}
                 <div class="px-5 py-4">
-                    <p class="mb-3 text-13 font-semibold text-ink">Activity</p>
+                    <p class="card-title mb-3">Activity</p>
                     @if ($detail['activity']->isEmpty())
                         <p class="text-13 text-muted">No recorded activity.</p>
                     @else
@@ -579,7 +579,7 @@
 
     {{-- ============ Modal: record payment (design PRD §5.8) ============ --}}
     @if ($paying !== null && $detail !== null)
-        <div wire:click.self="cancelPayment" class="overlay-enter fixed inset-0 z-[60] grid place-items-start justify-center overflow-y-auto bg-ink/40 p-4 sm:p-8">
+        <div wire:click.self="cancelPayment" class="overlay-enter fixed inset-0 z-[60] grid place-items-start justify-center overflow-y-auto bg-navy/40 backdrop-blur-[2px] p-4 sm:p-8">
             <div class="mt-10 w-full max-w-[480px] rounded-lg bg-surface shadow-overlay" role="dialog" aria-modal="true">
                 <div class="flex items-center justify-between border-b border-line-2 px-5 py-4">
                     <h3 class="text-16 font-semibold text-ink">Record payment</h3>

@@ -1,0 +1,50 @@
+/* ============================================================
+   Kanduhulhudhoo Council — Typography tokens
+   ============================================================ */
+:root {
+  /* Families */
+  --font-sans:    'Manrope', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Sora', 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+
+  /* Type scale (px in rem, 16px base) */
+  --text-2xs: 0.6875rem; /* 11 */
+  --text-xs:  0.75rem;   /* 12 */
+  --text-sm:  0.8125rem; /* 13 */
+  --text-md:  0.875rem;  /* 14 — default UI */
+  --text-base:0.9375rem; /* 15 */
+  --text-lg:  1.0625rem; /* 17 */
+  --text-xl:  1.25rem;   /* 20 */
+  --text-2xl: 1.5rem;    /* 24 */
+  --text-3xl: 1.875rem;  /* 30 */
+  --text-4xl: 2.375rem;  /* 38 */
+  --text-5xl: 3rem;      /* 48 */
+  --text-6xl: 3.75rem;   /* 60 */
+
+  /* Weights */
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+  --fw-extrabold:800;
+
+  /* Line heights */
+  --lh-tight:   1.1;
+  --lh-snug:    1.25;
+  --lh-normal:  1.5;
+  --lh-relaxed: 1.65;
+
+  /* Letter spacing */
+  --ls-tight:   -0.02em;
+  --ls-snug:    -0.01em;
+  --ls-normal:  0;
+  --ls-wide:    0.02em;
+  --ls-caps:    0.08em; /* uppercase labels / eyebrows */
+
+  /* Semantic aliases */
+  --heading-font: var(--font-display);
+  --heading-weight: var(--fw-bold);
+  --heading-tracking: var(--ls-tight);
+  --body-font: var(--font-sans);
+  --eyebrow-tracking: var(--ls-caps);
+}

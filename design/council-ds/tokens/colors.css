@@ -1,0 +1,105 @@
+/* ============================================================
+   Kanduhulhudhoo Council — Color tokens
+   Derived from the council logo (deep navy + steel blue) with an
+   ocean-teal support accent reflecting the Maldivian lagoon.
+   ============================================================ */
+:root {
+  /* --- Brand: Navy (primary identity) --- */
+  --navy-900: #12203a;
+  --navy-800: #1d2b45; /* logo navy — brand primary */
+  --navy-700: #243450;
+  --navy-600: #2f4160;
+  --navy-500: #3b4f70;
+  --navy-400: #5c6d89;
+  --navy-300: #8c99ac;
+  --navy-200: #c2cad6;
+  --navy-100: #e4e8ee;
+  --navy-50:  #f2f4f8;
+
+  /* --- Brand: Steel blue (primary action / accent) --- */
+  --blue-900: #163a55;
+  --blue-800: #1d5480;
+  --blue-700: #2464a0;
+  --blue-600: #2c74a8; /* logo accent — brand blue */
+  --blue-500: #3585bd;
+  --blue-400: #5aa0d1;
+  --blue-300: #8ec0e2;
+  --blue-200: #bfdcef;
+  --blue-100: #e2f0f9;
+  --blue-50:  #f0f7fc;
+
+  /* --- Support: Ocean teal (lagoon) --- */
+  --teal-700: #0f766e;
+  --teal-600: #12968c;
+  --teal-500: #16a9a0;
+  --teal-400: #3cc3bb;
+  --teal-300: #7ed8d2;
+  --teal-100: #d9f3f1;
+  --teal-50:  #edfaf9;
+
+  /* --- Neutrals (cool gray, tuned toward navy) --- */
+  --white:    #ffffff;
+  --gray-50:  #f6f8fa;
+  --gray-100: #eef1f4; /* app canvas */
+  --gray-150: #e6eaef;
+  --gray-200: #dbe1e8; /* borders */
+  --gray-300: #c3ccd6;
+  --gray-400: #9aa6b4;
+  --gray-500: #6b7888;
+  --gray-600: #505c6b;
+  --gray-700: #3a4552;
+  --gray-800: #26303c;
+  --gray-900: #161d27;
+
+  /* --- Semantic --- */
+  --success-600: #1f9d6b;
+  --success-500: #23b57b;
+  --success-100: #d7f2e6;
+  --success-50:  #ecfaf3;
+
+  --danger-600: #d64545;
+  --danger-500: #e35757;
+  --danger-100: #fbdedb;
+  --danger-50:  #fdefee;
+
+  --warning-600: #d08700;
+  --warning-500: #ecac2c;
+  --warning-100: #faedcd;
+  --warning-50:  #fdf7e8;
+
+  --info-600: var(--blue-600);
+  --info-100: var(--blue-100);
+  --info-50:  var(--blue-50);
+
+  /* ==========================================================
+     Semantic aliases — reference these in components
+     ========================================================== */
+  --brand:            var(--navy-800);
+  --brand-accent:     var(--blue-600);
+  --brand-support:    var(--teal-500);
+
+  --surface-page:     var(--gray-100);
+  --surface-card:     var(--white);
+  --surface-sunken:   var(--gray-50);
+  --surface-inverse:  var(--navy-800);
+  --surface-hover:    var(--gray-50);
+
+  --text-strong:      var(--navy-900);
+  --text-body:        var(--gray-700);
+  --text-muted:       var(--gray-500);
+  --text-subtle:      var(--gray-400);
+  --text-on-brand:    var(--white);
+  --text-link:        var(--blue-600);
+
+  --border-subtle:    var(--gray-200);
+  --border-strong:    var(--gray-300);
+  --border-focus:     var(--blue-500);
+
+  --action-primary:        var(--blue-600);
+  --action-primary-hover:  var(--blue-700);
+  --action-primary-active: var(--blue-800);
+  --action-brand:          var(--navy-800);
+  --action-brand-hover:    var(--navy-700);
+
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--blue-500) 35%, transparent);
+}

@@ -34,7 +34,7 @@
             </div>
             <table class="w-full text-13">
                 <thead>
-                    <tr class="border-b border-line bg-sunken text-11 uppercase tracking-wide text-muted">
+                    <tr class="border-b border-line">
                         <th class="th text-left">Month</th>
                         <th class="th text-right">Billed</th>
                         <th class="th text-right">Collected</th>

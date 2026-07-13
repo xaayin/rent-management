@@ -7,7 +7,7 @@
     {{ Vite::fonts() }}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-sunken font-sans text-14 text-ink antialiased">
+<body class="min-h-screen bg-canvas font-sans text-14 text-ink antialiased">
     @php
         $user = auth()->user();
         $initials = collect(explode(' ', (string) $user?->name))
@@ -19,12 +19,14 @@
         ]);
     @endphp
 
-    {{-- ============ Top bar (56px, design PRD §4.1) ============ --}}
-    <header class="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-2 border-b border-line bg-surface px-3">
-        <a href="{{ route('dashboard') }}" class="flex shrink-0 items-center gap-2 pl-1 pr-3">
-            <span class="grid h-7 w-7 place-items-center rounded-md bg-brand-500 text-14 font-bold text-white">K</span>
-            <span class="hidden font-semibold text-ink sm:block">Kuli</span>
-            <span class="hidden text-12 text-muted lg:block">· Lease Management</span>
+    {{-- ============ Top bar (68px, council DS) ============ --}}
+    <header class="fixed inset-x-0 top-0 z-40 flex h-17 items-center gap-2 border-b border-line bg-surface/90 px-3 backdrop-blur">
+        <a href="{{ route('dashboard') }}" class="flex shrink-0 items-center gap-2.5 pl-1 pr-3">
+            <img src="{{ asset('images/council/mark-color.png') }}" alt="" class="h-8 w-auto">
+            <span class="hidden leading-tight sm:block">
+                <span class="block font-display text-13 font-bold tracking-[-0.01em] text-navy">Kanduhulhudhoo</span>
+                <span class="block text-11 font-semibold text-muted">Council Secretariat</span>
+            </span>
         </a>
 
         {{-- Global search → leases list --}}
@@ -89,11 +91,11 @@
         </div>
     </header>
 
-    <div class="flex pt-14">
-        {{-- ============ Sidebar (240px, design PRD §4.1) ============ --}}
-        <aside class="fixed bottom-0 left-0 top-14 z-30 hidden w-60 flex-col border-r border-line bg-surface md:flex">
-            <nav class="flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
-                <p class="px-3 pb-1.5 pt-1 text-11 font-semibold uppercase tracking-wide text-muted">Council · Land &amp; Property</p>
+    <div class="flex pt-17">
+        {{-- ============ Sidebar (264px, council DS) ============ --}}
+        <aside class="fixed bottom-0 left-0 top-17 z-30 hidden w-66 flex-col border-r border-line bg-surface md:flex">
+            <nav class="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
+                <p class="px-3 pb-1.5 pt-1 text-11 font-bold uppercase tracking-[0.08em] text-faint">Land &amp; Property</p>
 
                 <a href="{{ route('dashboard') }}" class="nav-item {{ request()->routeIs('dashboard') ? 'nav-item-active' : '' }}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
@@ -140,7 +142,7 @@
 
                 @canany([\App\Enums\Permission::ManageUsers->value, \App\Enums\Permission::ConfigureNotifications->value])
                     <div class="my-2 border-t border-line-2"></div>
-                    <p class="px-3 pb-1 pt-2 text-11 font-semibold uppercase tracking-wide text-muted">Settings</p>
+                    <p class="px-3 pb-1 pt-2 text-11 font-bold uppercase tracking-[0.08em] text-faint">Settings</p>
                 @endcanany
                 @can(\App\Enums\Permission::ManageUsers->value)
                     <a href="{{ route('settings.users') }}" class="nav-item {{ request()->routeIs('settings.users') ? 'nav-item-active' : '' }}">
@@ -157,17 +159,19 @@
             </nav>
 
             <div class="border-t border-line-2 p-3">
-                <div class="flex items-center gap-2 rounded p-2">
-                    <span class="grid h-7 w-7 place-items-center rounded bg-brand-50 text-12 font-bold text-brand-600">MC</span>
+                <div class="flex items-center gap-2.5 rounded border border-discovery-bg bg-discovery-bg/60 p-2.5">
+                    <span class="grid h-8 w-8 shrink-0 place-items-center rounded bg-teal text-white">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+                    </span>
                     <div class="min-w-0">
-                        <p class="truncate text-12 font-medium text-ink">Malé City Council</p>
-                        <p class="truncate text-11 text-muted">Revenue Section</p>
+                        <p class="truncate text-11 font-semibold text-muted">Office</p>
+                        <p class="truncate text-12 font-bold text-ink">GA. Kanduhulhudhoo</p>
                     </div>
                 </div>
             </div>
         </aside>
 
-        <main class="w-full md:pl-60">
+        <main class="w-full md:pl-66">
             <div class="mx-auto w-full max-w-[1200px] px-4 py-6 sm:px-6">
                 {{ $slot }}
             </div>

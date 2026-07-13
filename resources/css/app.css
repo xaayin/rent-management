@@ -6,53 +6,63 @@
 
 /*
  | Design tokens — Council Land & Property Lease Management System.
- | Original token set in the Atlassian Design System *style* (see docs/UI_DESIGN_PRD.md §3, §9.1).
+ | Kanduhulhudhoo Council Design System (see design/council-ds/README.md; canonical
+ | source is the claude.ai/design project of the same name). Two-blue civic identity:
+ | deep navy #1D2B45 + steel blue #2C74A8, ocean-teal support, cool-gray canvas.
  | Tokens are the single source of truth; do not hardcode colours/radii/shadows in markup.
  */
 @theme {
-    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-sans: 'Manrope', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-display: 'Sora', 'Manrope', ui-sans-serif, system-ui, sans-serif;
 
-    /* Brand (blue) — primary actions, links, selected state. */
-    --color-brand-50: #e9f2ff;
-    --color-brand-100: #cce0ff;
-    --color-brand-300: #579dff;
-    --color-brand-500: #0c66e4;
-    --color-brand-600: #0055cc;
-    --color-brand-700: #09326c;
+    /* Brand (steel blue) — primary actions, links, selected state. */
+    --color-brand-50: #f0f7fc;
+    --color-brand-100: #e2f0f9;
+    --color-brand-300: #8ec0e2;
+    --color-brand-500: #2c74a8; /* logo accent — action primary */
+    --color-brand-600: #2464a0; /* hover */
+    --color-brand-700: #1d5480; /* active */
 
-    /* Neutrals — ink & surfaces. */
-    --color-ink: #172b4d;
-    --color-subtle: #44546f;
-    --color-muted: #626f86;
-    --color-faint: #8590a2;
-    --color-line: #dfe1e6;
-    --color-line-2: #ebecf0;
+    /* Brand (deep navy) — identity, inverse surfaces, active nav. */
+    --color-navy: #1d2b45; /* logo navy */
+    --color-navy-hover: #243450;
+    --color-navy-strong: #12203a;
+
+    /* Neutrals — cool gray, tuned toward navy. */
+    --color-ink: #12203a;
+    --color-subtle: #3a4552;
+    --color-muted: #6b7888;
+    --color-faint: #9aa6b4;
+    --color-line: #dbe1e8;
+    --color-line-2: #e6eaef;
     --color-surface: #ffffff;
-    --color-sunken: #f7f8f9;
-    --color-hover: #f1f2f4;
-    --color-selected: #e9f2ff;
+    --color-canvas: #eef1f4;
+    --color-sunken: #f6f8fa;
+    --color-hover: #eef1f4;
+    --color-selected: #f0f7fc;
 
     /* Semantic — lozenge background/foreground pairs & feedback. */
-    --color-success-bg: #dcfce7;
-    --color-success-fg: #216e4e;
-    --color-warning-bg: #fff7d6;
-    --color-warning-fg: #974f0c;
-    --color-danger-bg: #ffeceb;
-    --color-danger-fg: #ae2e24;
-    --color-info-bg: #e9f2ff;
-    --color-info-fg: #0055cc;
-    --color-discovery-bg: #f3f0ff;
-    --color-discovery-fg: #5e4db2;
+    --color-success-bg: #ecfaf3;
+    --color-success-fg: #1f9d6b;
+    --color-warning-bg: #fdf7e8;
+    --color-warning-fg: #d08700;
+    --color-danger-bg: #fdefee;
+    --color-danger-fg: #d64545;
+    --color-info-bg: #f0f7fc;
+    --color-info-fg: #2c74a8;
+    --color-discovery-bg: #edfaf9; /* ocean teal — the lagoon support accent */
+    --color-discovery-fg: #0f766e;
+    --color-teal: #16a9a0; /* brand-support solid */
 
-    /* Radius. */
-    --radius-sm: 3px;
-    --radius-DEFAULT: 4px;
-    --radius-md: 6px;
-    --radius-lg: 8px;
+    /* Radius — soft, generous corners (controls 8px, cards 12px, modals 16px). */
+    --radius-sm: 6px;
+    --radius-DEFAULT: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
 
-    /* Elevation. */
-    --shadow-card: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
-    --shadow-overlay: 0 8px 16px -4px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+    /* Elevation — soft, low-contrast navy-tinted shadows. */
+    --shadow-card: 0 1px 3px rgba(29, 43, 69, 0.08), 0 1px 2px rgba(29, 43, 69, 0.04);
+    --shadow-overlay: 0 12px 28px rgba(29, 43, 69, 0.10), 0 4px 10px rgba(29, 43, 69, 0.05);
 
     /* Type scale (design PRD §3.2). */
     --text-11: 11px;
@@ -71,21 +81,29 @@
     --text-24--line-height: 28px;
 }
 
+/* Headings carry the display face (Sora) with tight civic tracking. */
+@layer base {
+    h1, h2, h3 {
+        font-family: var(--font-display);
+        letter-spacing: -0.02em;
+    }
+}
+
 /*
  | Component classes (design PRD §5, §9.3) — one definition per component so
- | Blade markup stays clean. Realised from design/ui-prototype.html.
+ | Blade markup stays clean. Styled to the Kanduhulhudhoo Council system.
  */
 @layer components {
     .btn-primary {
-        @apply inline-flex h-8 items-center gap-1.5 rounded bg-brand-500 px-3 text-13 font-medium text-white hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1 disabled:opacity-40;
+        @apply inline-flex whitespace-nowrap h-8 items-center gap-1.5 rounded bg-brand-500 px-3 text-13 font-semibold text-white hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1 disabled:opacity-40;
     }
 
     .btn-subtle {
-        @apply inline-flex h-8 items-center gap-1.5 rounded border border-transparent bg-transparent px-3 text-13 font-medium text-subtle hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1;
+        @apply inline-flex whitespace-nowrap h-8 items-center gap-1.5 rounded border border-transparent bg-transparent px-3 text-13 font-semibold text-subtle hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1;
     }
 
     .btn-danger {
-        @apply inline-flex h-8 items-center gap-1.5 rounded bg-danger-fg px-3 text-13 font-medium text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1;
+        @apply inline-flex whitespace-nowrap h-8 items-center gap-1.5 rounded bg-danger-fg px-3 text-13 font-semibold text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1;
     }
 
     .icon-btn {
@@ -101,15 +119,15 @@
     }
 
     .nav-item-active {
-        @apply bg-selected text-brand-600;
+        @apply bg-navy font-semibold text-white hover:bg-navy-hover;
 
         & svg {
-            @apply text-brand-600;
+            @apply text-white opacity-90;
         }
     }
 
     .loz {
-        @apply inline-flex h-5 items-center rounded-sm px-1.5 text-11 font-bold uppercase tracking-wide;
+        @apply inline-flex h-5 items-center whitespace-nowrap rounded-full px-2.5 text-11 font-bold;
     }
 
     .loz-neutral {
@@ -145,19 +163,23 @@
     }
 
     .tab-active {
-        @apply border-brand-500 text-brand-600;
+        @apply border-brand-500 font-semibold text-brand-600;
     }
 
     .th {
-        @apply px-3 py-2.5 font-semibold;
+        @apply whitespace-nowrap px-4 py-2.5 text-11 font-bold uppercase tracking-[0.08em] text-faint;
     }
 
     .td {
-        @apply px-3 py-2.5 align-middle;
+        @apply px-4 py-3 align-middle;
+    }
+
+    .card-title {
+        @apply font-display text-13 font-bold tracking-[-0.01em] text-ink;
     }
 
     .fl {
-        @apply text-11 font-semibold uppercase tracking-wide text-muted;
+        @apply text-11 font-bold uppercase tracking-[0.08em] text-muted;
     }
 
     .fl-req {
@@ -177,7 +199,7 @@
     }
 
     .chip {
-        @apply inline-flex h-8 items-center gap-1.5 rounded border border-line bg-surface px-2.5 text-13 text-subtle hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
+        @apply inline-flex h-8 items-center gap-1.5 rounded border border-line bg-surface px-2.5 text-13 text-subtle shadow-[0_1px_2px_rgba(29,43,69,0.06)] hover:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
     }
 
     .pg {
@@ -193,7 +215,7 @@
     }
 }
 
-/* Motion (design PRD §7) — fast, purposeful, reduced-motion aware. */
+/* Motion — quick and restrained (120ms hover, 200ms entrances), fades over bounces. */
 @keyframes so-slide-in {
     from { transform: translateX(100%); }
     to { transform: translateX(0); }
@@ -209,8 +231,8 @@
     100% { opacity: 0; visibility: hidden; }
 }
 
-.slideover-enter { animation: so-slide-in 0.18s ease; }
-.overlay-enter { animation: ov-fade-in 0.12s ease; }
+.slideover-enter { animation: so-slide-in 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.overlay-enter { animation: ov-fade-in 0.12s cubic-bezier(0.2, 0, 0, 1); }
 .toast-auto { animation: toast-out 4s ease forwards; }
 
 @media (prefers-reduced-motion: reduce) {

@@ -108,12 +108,12 @@
         <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
             <thead>
-                <tr class="border-b border-line bg-sunken text-[11px] uppercase tracking-wide text-muted">
-                    <th class="px-4 py-2 font-semibold">Name</th>
-                    <th class="px-4 py-2 font-semibold">Type</th>
-                    <th class="px-4 py-2 font-semibold">Registry no.</th>
-                    <th class="px-4 py-2 font-semibold">Mobile</th>
-                    <th class="px-4 py-2 text-right font-semibold">Leases</th>
+                <tr class="border-b border-line">
+                    <th class="th text-left">Name</th>
+                    <th class="th text-left">Type</th>
+                    <th class="th text-left">Registry no.</th>
+                    <th class="th text-left">Mobile</th>
+                    <th class="th text-right">Leases</th>
                     <th class="px-4 py-2"></th>
                 </tr>
             </thead>
@@ -154,7 +154,7 @@
     {{-- ============ Slide-over: tenant detail with drill-down (design PRD §6) ============ --}}
     @if ($detail !== null)
         @php $t = $detail['tenant']; @endphp
-        <div wire:click="closeTenant" class="overlay-enter fixed inset-0 z-40 bg-ink/30" aria-hidden="true"></div>
+        <div wire:click="closeTenant" class="overlay-enter fixed inset-0 z-40 bg-navy/40 backdrop-blur-[2px]" aria-hidden="true"></div>
         <div class="slideover-enter fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-[560px] flex-col bg-surface shadow-overlay" role="dialog" aria-modal="true">
             {{-- header --}}
             <div class="flex items-start gap-3 border-b border-line-2 px-5 py-4">
@@ -176,7 +176,7 @@
             </div>
 
             {{-- action bar --}}
-            <div class="flex items-center gap-2 border-b border-line-2 bg-sunken px-5 py-2.5">
+            <div class="flex flex-wrap items-center gap-2 border-b border-line-2 bg-sunken px-5 py-2.5">
                 @can('view reports')
                     <a href="{{ route('tenants.statement', $t) }}" class="btn-primary">Statement</a>
                 @endcan
@@ -193,16 +193,16 @@
                 @if ($detail['balance']->isPositive())
                     <div class="mx-5 mt-4 flex items-center justify-between rounded-md border border-danger-bg bg-danger-bg/40 px-4 py-3">
                         <div>
-                            <p class="text-12 font-semibold uppercase tracking-wide text-danger-fg">Balance due · all leases</p>
-                            <p class="text-24 font-semibold tabular-nums text-danger-fg">{{ $detail['balance']->format() }}</p>
+                            <p class="text-12 font-bold uppercase tracking-[0.08em] text-danger-fg">Balance due · all leases</p>
+                            <p class="font-display text-24 font-extrabold tracking-[-0.02em] tabular-nums text-danger-fg">{{ $detail['balance']->format() }}</p>
                         </div>
                         <span class="loz loz-danger">Outstanding</span>
                     </div>
                 @else
                     <div class="mx-5 mt-4 flex items-center justify-between rounded-md border border-success-bg bg-success-bg/40 px-4 py-3">
                         <div>
-                            <p class="text-12 font-semibold uppercase tracking-wide text-success-fg">Balance due · all leases</p>
-                            <p class="text-24 font-semibold tabular-nums text-success-fg">MVR 0.00</p>
+                            <p class="text-12 font-bold uppercase tracking-[0.08em] text-success-fg">Balance due · all leases</p>
+                            <p class="font-display text-24 font-extrabold tracking-[-0.02em] tabular-nums text-success-fg">MVR 0.00</p>
                         </div>
                         <span class="loz loz-success">All settled</span>
                     </div>
@@ -226,7 +226,7 @@
 
                 {{-- leases → invoices → payments drill-down --}}
                 <div class="px-5 pb-2">
-                    <p class="mb-2 text-13 font-semibold text-ink">Leases ({{ $detail['leases']->count() }})</p>
+                    <p class="card-title mb-2">Leases ({{ $detail['leases']->count() }})</p>
                     @if ($detail['leases']->isEmpty())
                         <p class="text-13 text-muted">No leases yet for this tenant.</p>
                     @else
@@ -318,7 +318,7 @@
 
                 {{-- recent messages (design PRD §6 "message history") --}}
                 <div class="px-5 py-4">
-                    <p class="mb-2 text-13 font-semibold text-ink">Recent messages</p>
+                    <p class="card-title mb-2">Recent messages</p>
                     @if ($detail['messages']->isEmpty())
                         <p class="text-13 text-muted">No SMS reminders sent yet.</p>
                     @else

@@ -1,8 +1,8 @@
 <x-layouts.guest :title="__('Sign in')">
     <div class="w-full max-w-sm">
-        <div class="mb-6 flex items-center justify-center gap-2">
-            <span class="flex h-8 w-8 items-center justify-center rounded bg-brand-500 text-sm font-semibold text-white">K</span>
-            <span class="text-base font-semibold text-ink">Kuli · Lease Management</span>
+        <div class="mb-6 text-center">
+            <img src="{{ asset('images/council/lockup-stacked-color.png') }}" alt="Secretariat of the Kanduhulhudhoo Council" class="mx-auto h-24 w-auto">
+            <p class="mt-3 text-11 font-bold uppercase tracking-[0.08em] text-muted">Land &amp; Property Lease Management</p>
         </div>
 
         <div class="rounded-md border border-line bg-surface p-6 shadow-card">
@@ -19,13 +19,13 @@
                 @csrf
 
                 <div>
-                    <label for="email" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Email</label>
+                    <label for="email" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Email</label>
                     <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus autocomplete="username"
                         class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
                 </div>
 
                 <div>
-                    <label for="password" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Password</label>
+                    <label for="password" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Password</label>
                     <input id="password" name="password" type="password" required autocomplete="current-password"
                         class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
                 </div>

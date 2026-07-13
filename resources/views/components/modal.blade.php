@@ -4,7 +4,7 @@
 @props(['title', 'close' => 'cancel', 'wide' => false])
 
 <div wire:click.self="{{ $close }}"
-    class="overlay-enter fixed inset-0 z-[60] grid place-items-start justify-center overflow-y-auto bg-ink/40 p-4 sm:p-8">
+    class="overlay-enter fixed inset-0 z-[60] grid place-items-start justify-center overflow-y-auto bg-navy/40 backdrop-blur-[2px] p-4 sm:p-8">
     <div class="mt-10 w-full {{ $wide ? 'max-w-[760px]' : 'max-w-[480px]' }} rounded-lg bg-surface shadow-overlay"
         role="dialog" aria-modal="true" aria-label="{{ $title }}">
         <div class="flex items-center justify-between border-b border-line-2 px-5 py-4">

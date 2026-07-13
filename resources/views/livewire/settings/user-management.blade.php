@@ -1,5 +1,5 @@
 <div>
-    <nav class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Settings / Users</nav>
+    <nav class="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-muted">Settings / Users</nav>
     <h1 class="mb-1 text-2xl font-semibold text-ink">Users &amp; roles</h1>
     <p class="mb-6 text-[13px] text-muted">Create council staff accounts and assign each a role (PRD §6.1).</p>
     <x-toast />
@@ -10,28 +10,28 @@
 
         <form wire:submit="createUser" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-                <label for="name" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Name</label>
+                <label for="name" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Name</label>
                 <input id="name" type="text" wire:model="name"
                     class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
                 @error('name') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label for="email" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Email</label>
+                <label for="email" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Email</label>
                 <input id="email" type="email" wire:model="email"
                     class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
                 @error('email') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label for="password" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Temporary password</label>
+                <label for="password" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Temporary password</label>
                 <input id="password" type="password" wire:model="password" autocomplete="new-password"
                     class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
                 @error('password') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label for="role" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Role</label>
+                <label for="role" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Role</label>
                 <select id="role" wire:model="role"
                     class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
                     <option value="">Select a role…</option>
@@ -55,10 +55,10 @@
     <div class="overflow-x-auto rounded-md border border-line bg-surface shadow-card">
         <table class="w-full text-left text-sm">
             <thead>
-                <tr class="border-b border-line bg-sunken text-[11px] uppercase tracking-wide text-muted">
-                    <th class="px-4 py-2 font-semibold">Name</th>
-                    <th class="px-4 py-2 font-semibold">Email</th>
-                    <th class="px-4 py-2 font-semibold">Role</th>
+                <tr class="border-b border-line">
+                    <th class="th text-left">Name</th>
+                    <th class="th text-left">Email</th>
+                    <th class="th text-left">Role</th>
                 </tr>
             </thead>
             <tbody>

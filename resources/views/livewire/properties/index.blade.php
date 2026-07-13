@@ -90,12 +90,12 @@
         <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
             <thead>
-                <tr class="border-b border-line bg-sunken text-[11px] uppercase tracking-wide text-muted">
-                    <th class="px-4 py-2 font-semibold">Name</th>
-                    <th class="px-4 py-2 font-semibold">Land no.</th>
-                    <th class="px-4 py-2 font-semibold">Usage</th>
-                    <th class="px-4 py-2 text-right font-semibold">Size (ft²)</th>
-                    <th class="px-4 py-2 font-semibold">Status</th>
+                <tr class="border-b border-line">
+                    <th class="th text-left">Name</th>
+                    <th class="th text-left">Land no.</th>
+                    <th class="th text-left">Usage</th>
+                    <th class="th text-right">Size (ft²)</th>
+                    <th class="th text-left">Status</th>
                     <th class="px-4 py-2"></th>
                 </tr>
             </thead>
@@ -108,9 +108,9 @@
                         <td class="px-4 py-3 text-right tabular-nums text-ink">{{ number_format($property->size_sqft) }}</td>
                         <td class="px-4 py-3">
                             @if ($property->isArchived())
-                                <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-subtle" style="background:#EBECF0">Archived</span>
+                                <span class="loz loz-neutral">Archived</span>
                             @else
-                                <span class="inline-flex items-center rounded-sm bg-success-bg px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-success-fg">Active</span>
+                                <span class="loz loz-success">Active</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right">

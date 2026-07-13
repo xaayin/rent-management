@@ -1,8 +1,8 @@
 <x-layouts.guest :title="__('Two-factor authentication')">
     <div class="w-full max-w-sm">
         <div class="mb-6 flex items-center justify-center gap-2">
-            <span class="flex h-8 w-8 items-center justify-center rounded bg-brand-500 text-sm font-semibold text-white">K</span>
-            <span class="text-base font-semibold text-ink">Kuli · Lease Management</span>
+            <img src="{{ asset('images/council/mark-color.png') }}" alt="" class="h-9 w-auto">
+            <span class="font-display text-base font-bold text-navy">Kanduhulhudhoo Council</span>
         </div>
 
         <div class="rounded-md border border-line bg-surface p-6 shadow-card">
@@ -19,7 +19,7 @@
                 @csrf
 
                 <div>
-                    <label for="code" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Authentication code</label>
+                    <label for="code" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Authentication code</label>
                     <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" autofocus
                         class="h-9 w-full rounded border border-line bg-surface px-3 text-center text-lg tracking-[0.4em] text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
                 </div>
@@ -35,7 +35,7 @@
                 <form method="POST" action="{{ url('/two-factor-challenge') }}" class="mt-3 space-y-3">
                     @csrf
                     <div>
-                        <label for="recovery_code" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-subtle">Recovery code</label>
+                        <label for="recovery_code" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Recovery code</label>
                         <input id="recovery_code" name="recovery_code" type="text" autocomplete="off"
                             class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
                     </div>
