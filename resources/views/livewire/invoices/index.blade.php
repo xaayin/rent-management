@@ -31,29 +31,17 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
             </span>
             <input type="text" wire:model.live.debounce.300ms="q" placeholder="Filter invoices"
-                class="h-8 w-56 rounded border border-line bg-surface pl-8 pr-3 text-13 placeholder:text-muted focus:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
+                class="h-8 w-56 rounded border border-line bg-surface pl-8 pr-3 text-13 shadow-xs transition-[border-color,box-shadow] duration-100 placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-300/40 focus-visible:outline-none">
         </label>
 
-        <select wire:model.live="statusFilter" class="chip {{ $statusFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
-            <option value="">Status</option>
-            @foreach ($invoiceStatuses as $statusOption)
-                <option value="{{ $statusOption->value }}">{{ $statusOption->label() }}</option>
-            @endforeach
-        </select>
+        <x-select wire:model.live="statusFilter" chip
+            :options="collect(['' => 'Status'])->merge(collect($invoiceStatuses)->mapWithKeys(fn ($s) => [$s->value => $s->label()]))" />
 
-        <select wire:model.live="tenantTypeFilter" class="chip {{ $tenantTypeFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
-            <option value="">Tenant type</option>
-            @foreach ($tenantTypes as $typeOption)
-                <option value="{{ $typeOption->value }}">{{ $typeOption->label() }}</option>
-            @endforeach
-        </select>
+        <x-select wire:model.live="tenantTypeFilter" chip
+            :options="collect(['' => 'Tenant type'])->merge(collect($tenantTypes)->mapWithKeys(fn ($t) => [$t->value => $t->label()]))" />
 
-        <select wire:model.live="propertyTypeFilter" class="chip {{ $propertyTypeFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
-            <option value="">Property type</option>
-            @foreach ($usageTypes as $usageOption)
-                <option value="{{ $usageOption->value }}">{{ $usageOption->label() }}</option>
-            @endforeach
-        </select>
+        <x-select wire:model.live="propertyTypeFilter" chip
+            :options="collect(['' => 'Property type'])->merge(collect($usageTypes)->mapWithKeys(fn ($u) => [$u->value => $u->label()]))" />
 
         <input type="month" wire:model.live="periodFilter" title="Billing period"
             class="chip {{ $periodFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
@@ -155,10 +143,10 @@
             {{-- header --}}
             <div class="flex items-start gap-3 border-b border-line-2 px-5 py-4">
                 <div class="min-w-0 flex-1">
-                    <div class="mb-1 flex items-center gap-2 text-12 text-muted">
+                    <div class="mb-1 flex items-center gap-2 text-11 font-bold uppercase tracking-[0.08em] text-faint">
                         <span>Invoice {{ $payingInvoice->number }}</span><span>·</span><span>{{ $payingInvoice->periodLabel() }}</span>
                     </div>
-                    <h2 class="truncate text-20 font-semibold text-ink">Record payment</h2>
+                    <h2 class="truncate text-24 font-bold text-ink">Record payment</h2>
                     <p class="truncate text-13 text-muted">{{ $payingInvoice->lease->tenant->name }} · {{ $payingInvoice->lease->property->name }}</p>
                 </div>
                 <button wire:click="cancelPayment" class="icon-btn" aria-label="Close">
@@ -188,11 +176,8 @@
                     </div>
                     <div>
                         <label class="fl-req">Method</label>
-                        <select wire:model="pay_method" class="input mt-1">
-                            @foreach ($methods as $method)
-                                <option value="{{ $method->value }}">{{ $method->label() }}</option>
-                            @endforeach
-                        </select>
+                        <x-select wire:model="pay_method" class="mt-1"
+                            :options="collect($methods)->mapWithKeys(fn ($m) => [$m->value => $m->label()])" />
                         @error('pay_method') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                     </div>
                     <div>
@@ -289,14 +274,8 @@
             <div class="space-y-4 px-5 py-4">
                 <div>
                     <label class="fl-req">Lease</label>
-                    <select wire:model.live="inv_lease_id" class="input mt-1">
-                        <option value="">Pick a lease…</option>
-                        @foreach ($activeLeases as $leaseOption)
-                            <option value="{{ $leaseOption->id }}">
-                                {{ $leaseOption->agreement_number }} — {{ $leaseOption->tenant->name }} · {{ $leaseOption->property->name }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <x-select wire:model.live="inv_lease_id" class="mt-1" placeholder="Pick a lease…"
+                        :options="$activeLeases->mapWithKeys(fn ($l) => [$l->id => $l->agreement_number.' — '.$l->tenant->name.' · '.$l->property->name])" />
                     @error('inv_lease_id') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                 </div>
 
@@ -350,7 +329,7 @@
                     </div>
                 @endif
             </div>
-            <div class="flex items-center justify-end gap-2 rounded-b-lg border-t border-line-2 bg-sunken px-5 py-3.5">
+            <div class="flex items-center justify-end gap-2 rounded-b-xl border-t border-line-2 bg-sunken px-5 py-3.5">
                 <button type="button" wire:click="closeCreateInvoice" class="btn-subtle">Cancel</button>
                 <button type="button" wire:click="createInvoice" class="btn-primary" @disabled($newInvoice !== null && $newInvoice['error'] !== null)>
                     Create invoice

@@ -21,13 +21,13 @@
                 <div>
                     <label for="email" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Email</label>
                     <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus autocomplete="username"
-                        class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
+                        class="input ">
                 </div>
 
                 <div>
                     <label for="password" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Password</label>
                     <input id="password" name="password" type="password" required autocomplete="current-password"
-                        class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
+                        class="input ">
                 </div>
 
                 <label class="flex items-center gap-2 text-[13px] text-subtle">

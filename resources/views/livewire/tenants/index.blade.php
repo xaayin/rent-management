@@ -18,12 +18,8 @@
                 <div class="grid grid-cols-1 gap-4 px-5 py-4 sm:grid-cols-2">
                     <div>
                         <label class="fl">Tenant type</label>
-                        <select wire:model.live="type" class="input mt-1">
-                            <option value="">Select…</option>
-                            @foreach ($types as $t)
-                                <option value="{{ $t->value }}">{{ $t->label() }}</option>
-                            @endforeach
-                        </select>
+                        <x-select wire:model.live="type" class="mt-1"
+                            :options="collect($types)->mapWithKeys(fn ($t) => [$t->value => $t->label()])" />
                         @error('type') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                     </div>
                     <div>
@@ -72,7 +68,7 @@
                         Opted out of SMS reminders (§5.5 — no reminders will be sent to this tenant)
                     </label>
                 </div>
-                <div class="flex items-center justify-end gap-2 rounded-b-lg border-t border-line-2 bg-sunken px-5 py-3.5">
+                <div class="flex items-center justify-end gap-2 rounded-b-xl border-t border-line-2 bg-sunken px-5 py-3.5">
                     <button type="button" wire:click="cancel" class="btn-subtle">Cancel</button>
                     <button type="submit" class="btn-primary">{{ $editingId ? 'Save changes' : 'Create tenant' }}</button>
                 </div>
@@ -87,15 +83,11 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
             </span>
             <input type="text" wire:model.live.debounce.300ms="q" placeholder="Filter tenants"
-                class="h-8 w-56 rounded border border-line bg-surface pl-8 pr-3 text-13 placeholder:text-muted focus:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
+                class="h-8 w-56 rounded border border-line bg-surface pl-8 pr-3 text-13 shadow-xs transition-[border-color,box-shadow] duration-100 placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-300/40 focus-visible:outline-none">
         </label>
 
-        <select wire:model.live="typeFilter" class="chip {{ $typeFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
-            <option value="">Tenant type</option>
-            @foreach ($types as $typeOption)
-                <option value="{{ $typeOption->value }}">{{ $typeOption->label() }}</option>
-            @endforeach
-        </select>
+        <x-select wire:model.live="typeFilter" chip
+            :options="collect(['' => 'Tenant type'])->merge(collect($types)->mapWithKeys(fn ($t) => [$t->value => $t->label()]))" />
 
         @if ($q !== '' || $typeFilter !== '')
             <button wire:click="clearFilters" class="btn-subtle h-8 px-2 text-12">Clear filters</button>
@@ -168,7 +160,7 @@
                             <span class="text-12 text-muted">{{ $t->registryNumber() }}</span>
                         @endif
                     </div>
-                    <h2 class="truncate text-20 font-semibold text-ink">{{ $t->name }}</h2>
+                    <h2 class="truncate text-24 font-bold text-ink">{{ $t->name }}</h2>
                 </div>
                 <button wire:click="closeTenant" class="icon-btn" aria-label="Close">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -176,9 +168,12 @@
             </div>
 
             {{-- action bar --}}
-            <div class="flex flex-wrap items-center gap-2 border-b border-line-2 bg-sunken px-5 py-2.5">
+            <div class="flex flex-wrap items-center gap-2 border-b border-line-2 px-5 py-3">
                 @can('view reports')
-                    <a href="{{ route('tenants.statement', $t) }}" class="btn-primary">Statement</a>
+                    <a href="{{ route('tenants.statement', $t) }}" class="btn-primary">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>
+                        Statement
+                    </a>
                 @endcan
                 <span class="ml-auto">
                     @can('update', $t)
@@ -188,49 +183,61 @@
             </div>
 
             {{-- body --}}
-            <div class="flex-1 overflow-y-auto pb-6">
+            <div class="flex-1 overflow-y-auto bg-sunken pb-6">
                 {{-- consolidated balance (FR-TEN-05) --}}
                 @if ($detail['balance']->isPositive())
-                    <div class="mx-5 mt-4 flex items-center justify-between rounded-md border border-danger-bg bg-danger-bg/40 px-4 py-3">
+                    <div class="mx-5 mt-4 flex items-center justify-between rounded-md bg-danger-bg px-5 py-4">
                         <div>
                             <p class="text-12 font-bold uppercase tracking-[0.08em] text-danger-fg">Balance due · all leases</p>
-                            <p class="font-display text-24 font-extrabold tracking-[-0.02em] tabular-nums text-danger-fg">{{ $detail['balance']->format() }}</p>
+                            <p class="mt-1 font-display text-[28px] font-extrabold leading-8 tracking-[-0.02em] tabular-nums text-danger-fg">{{ $detail['balance']->format() }}</p>
                         </div>
-                        <span class="loz loz-danger">Outstanding</span>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-danger-fg"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg>
                     </div>
                 @else
-                    <div class="mx-5 mt-4 flex items-center justify-between rounded-md border border-success-bg bg-success-bg/40 px-4 py-3">
+                    <div class="mx-5 mt-4 flex items-center justify-between rounded-md bg-success-bg px-5 py-4">
                         <div>
-                            <p class="text-12 font-bold uppercase tracking-[0.08em] text-success-fg">Balance due · all leases</p>
-                            <p class="font-display text-24 font-extrabold tracking-[-0.02em] tabular-nums text-success-fg">MVR 0.00</p>
+                            <p class="text-12 font-bold uppercase tracking-[0.08em] text-success-fg">Balance due · all settled</p>
+                            <p class="mt-1 font-display text-[28px] font-extrabold leading-8 tracking-[-0.02em] tabular-nums text-success-fg">MVR 0.00</p>
                         </div>
-                        <span class="loz loz-success">All settled</span>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-success-fg"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
                     </div>
                 @endif
 
                 {{-- contact details --}}
-                <div class="grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4">
-                    <div><p class="fl">Mobile</p><p class="fv">{{ $t->mobile ?: '—' }}</p></div>
-                    <div><p class="fl">Email</p><p class="fv">{{ $t->email ?: '—' }}</p></div>
-                    <div>
-                        <p class="fl">SMS reminders</p>
-                        <span class="loz mt-1 {{ $t->canReceiveSms() ? 'loz-success' : 'loz-warning' }}">{{ $t->canReceiveSms() ? 'Enabled' : ($t->sms_opt_out ? 'Opted out' : 'No mobile') }}</span>
+                <div class="mx-5 mt-4 mb-4 divide-y divide-line-2 rounded-md border border-line bg-surface shadow-card">
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <p class="w-32 shrink-0 text-13 text-muted">Mobile</p>
+                        <p class="min-w-0 flex-1 text-13 text-ink">{{ $t->mobile ?: '—' }}</p>
+                    </div>
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <p class="w-32 shrink-0 text-13 text-muted">Email</p>
+                        <p class="min-w-0 flex-1 text-13 text-ink">{{ $t->email ?: '—' }}</p>
+                    </div>
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <p class="w-32 shrink-0 text-13 text-muted">SMS reminders</p>
+                        <span class="loz {{ $t->canReceiveSms() ? 'loz-success' : 'loz-warning' }}">{{ $t->canReceiveSms() ? 'Enabled' : ($t->sms_opt_out ? 'Opted out' : 'No mobile') }}</span>
                     </div>
                     @if ($t->isOrganisation() && $t->contact_person)
-                        <div><p class="fl">Contact person</p><p class="fv">{{ $t->contact_person }}</p></div>
+                        <div class="flex items-center gap-4 px-4 py-3">
+                            <p class="w-32 shrink-0 text-13 text-muted">Contact person</p>
+                            <p class="min-w-0 flex-1 text-13 text-ink">{{ $t->contact_person }}</p>
+                        </div>
                     @endif
                     @if ($t->postal_address)
-                        <div class="col-span-2"><p class="fl">Postal address</p><p class="fv">{{ $t->postal_address }}</p></div>
+                        <div class="flex items-center gap-4 px-4 py-3">
+                            <p class="w-32 shrink-0 text-13 text-muted">Postal address</p>
+                            <p class="min-w-0 flex-1 text-13 text-ink">{{ $t->postal_address }}</p>
+                        </div>
                     @endif
                 </div>
 
                 {{-- leases → invoices → payments drill-down --}}
-                <div class="px-5 pb-2">
-                    <p class="card-title mb-2">Leases ({{ $detail['leases']->count() }})</p>
+                <div class="mx-5 mb-4 rounded-md border border-line bg-surface p-4 shadow-card">
+                    <p class="mb-2.5 font-display text-16 font-bold tracking-[-0.01em] text-ink">Leases ({{ $detail['leases']->count() }})</p>
                     @if ($detail['leases']->isEmpty())
                         <p class="text-13 text-muted">No leases yet for this tenant.</p>
                     @else
-                        <div class="overflow-hidden rounded-md border border-line">
+                        <div class="overflow-hidden rounded border border-line-2">
                             @foreach ($detail['leases'] as $lease)
                                 @php $leaseOutstanding = max((int) $lease->invoiced_laari - (int) $lease->paid_laari, 0); @endphp
                                 <button wire:click="toggleLease({{ $lease->id }})"
@@ -317,8 +324,8 @@
                 </div>
 
                 {{-- recent messages (design PRD §6 "message history") --}}
-                <div class="px-5 py-4">
-                    <p class="card-title mb-2">Recent messages</p>
+                <div class="mx-5 rounded-md border border-line bg-surface p-4 shadow-card">
+                    <p class="mb-2.5 font-display text-16 font-bold tracking-[-0.01em] text-ink">Recent messages</p>
                     @if ($detail['messages']->isEmpty())
                         <p class="text-13 text-muted">No SMS reminders sent yet.</p>
                     @else

@@ -21,7 +21,7 @@
                 <div>
                     <label for="code" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Authentication code</label>
                     <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" autofocus
-                        class="h-9 w-full rounded border border-line bg-surface px-3 text-center text-lg tracking-[0.4em] text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
+                        class="input text-center text-lg tracking-[0.4em]">
                 </div>
 
                 <button type="submit"
@@ -37,7 +37,7 @@
                     <div>
                         <label for="recovery_code" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Recovery code</label>
                         <input id="recovery_code" name="recovery_code" type="text" autocomplete="off"
-                            class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
+                            class="input ">
                     </div>
                     <button type="submit"
                         class="h-8 w-full rounded border border-line bg-surface text-sm font-medium text-subtle transition hover:bg-hover">

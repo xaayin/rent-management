@@ -33,7 +33,7 @@
                             Days {{ $rule['kind'] === 'pre_due' ? 'before' : 'after' }} the due date
                         </label>
                         <input type="number" wire:model="rules.{{ $id }}.days"
-                            class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
+                            class="input ">
                         @error('rules.'.$id.'.days') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
                     </div>
                 @endif

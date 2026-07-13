@@ -61,7 +61,7 @@ it('opens the lease slide-over with details and actions', function () {
     Livewire::test(LeasesIndex::class)
         ->call('selectLease', $lease->id)
         ->assertSee($lease->agreement_number)
-        ->assertSee('Amount due')
+        ->assertSee('Overdue')
         ->assertSee('Record payment')
         ->assertSee('Send reminder')
         ->assertSee('Recent invoices');

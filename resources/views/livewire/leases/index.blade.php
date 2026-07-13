@@ -24,31 +24,19 @@
                 </div>
                 <div>
                     <label class="fl">Status</label>
-                    <select wire:model="status" class="input mt-1">
-                        <option value="draft">Draft</option>
-                        <option value="active">Active</option>
-                    </select>
+                    <x-select wire:model="status" class="mt-1" :options="['draft' => 'Draft', 'active' => 'Active']" />
                     @error('status') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label class="fl">Property</label>
-                    <select wire:model="property_id" class="input mt-1">
-                        <option value="">Select…</option>
-                        @foreach ($properties as $property)
-                            <option value="{{ $property->id }}">{{ $property->name }} ({{ $property->land_number }})</option>
-                        @endforeach
-                    </select>
+                    <x-select wire:model="property_id" class="mt-1"
+                        :options="$properties->mapWithKeys(fn ($p) => [$p->id => $p->name.' ('.$p->land_number.')'])" />
                     @error('property_id') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="fl">Tenant</label>
-                    <select wire:model="tenant_id" class="input mt-1">
-                        <option value="">Select…</option>
-                        @foreach ($tenants as $tenant)
-                            <option value="{{ $tenant->id }}">{{ $tenant->name }}</option>
-                        @endforeach
-                    </select>
+                    <x-select wire:model="tenant_id" class="mt-1" :options="$tenants->pluck('name', 'id')" />
                     @error('tenant_id') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                 </div>
 
@@ -81,12 +69,8 @@
 
                 <div>
                     <label class="fl">Rent basis</label>
-                    <select wire:model.live="rent_basis" class="input mt-1">
-                        <option value="">Select…</option>
-                        @foreach ($rentBases as $basis)
-                            <option value="{{ $basis->value }}">{{ $basis->label() }}</option>
-                        @endforeach
-                    </select>
+                    <x-select wire:model.live="rent_basis" class="mt-1"
+                        :options="collect($rentBases)->mapWithKeys(fn ($b) => [$b->value => $b->label()])" />
                     @error('rent_basis') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                 </div>
 
@@ -126,11 +110,8 @@
                     </div>
                     <div>
                         <label class="fl">CSR charge</label>
-                        <select wire:model.live="csr_type" class="input mt-1">
-                            @foreach ($csrTypes as $c)
-                                <option value="{{ $c->value }}">{{ $c->label() }}</option>
-                            @endforeach
-                        </select>
+                        <x-select wire:model.live="csr_type" class="mt-1"
+                            :options="collect($csrTypes)->mapWithKeys(fn ($c) => [$c->value => $c->label()])" />
                         @error('csr_type') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                     </div>
 
@@ -156,19 +137,15 @@
                     @if ($csr_type !== 'none')
                         <div>
                             <label class="fl">CSR billed in</label>
-                            <select wire:model="csr_month" class="input mt-1">
-                                <option value="">Select month…</option>
-                                @for ($m = 1; $m <= 12; $m++)
-                                    <option value="{{ $m }}">{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
-                                @endfor
-                            </select>
+                            <x-select wire:model="csr_month" class="mt-1" placeholder="Select month…"
+                                :options="collect(range(1, 12))->mapWithKeys(fn ($m) => [$m => date('F', mktime(0, 0, 0, $m, 1))])" />
                             @error('csr_month') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                         </div>
                     @endif
                 </div>
 
                 </div>
-                <div class="flex items-center justify-end gap-2 rounded-b-lg border-t border-line-2 bg-sunken px-5 py-3.5">
+                <div class="flex items-center justify-end gap-2 rounded-b-xl border-t border-line-2 bg-sunken px-5 py-3.5">
                     <button type="button" wire:click="cancel" class="btn-subtle">Cancel</button>
                     <button type="submit" class="btn-primary">{{ $editingId ? 'Save changes' : 'Create lease' }}</button>
                 </div>
@@ -183,29 +160,17 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
             </span>
             <input type="text" wire:model.live.debounce.300ms="q" placeholder="Filter leases"
-                class="h-8 w-56 rounded border border-line bg-surface pl-8 pr-3 text-13 placeholder:text-muted focus:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
+                class="h-8 w-56 rounded border border-line bg-surface pl-8 pr-3 text-13 shadow-xs transition-[border-color,box-shadow] duration-100 placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-300/40 focus-visible:outline-none">
         </label>
 
-        <select wire:model.live="statusFilter" class="chip {{ $statusFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
-            <option value="">Status</option>
-            @foreach ($leaseStatuses as $statusOption)
-                <option value="{{ $statusOption->value }}">{{ $statusOption->label() }}</option>
-            @endforeach
-        </select>
+        <x-select wire:model.live="statusFilter" chip
+            :options="collect(['' => 'Status'])->merge(collect($leaseStatuses)->mapWithKeys(fn ($s) => [$s->value => $s->label()]))" />
 
-        <select wire:model.live="tenantTypeFilter" class="chip {{ $tenantTypeFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
-            <option value="">Tenant type</option>
-            @foreach ($tenantTypes as $typeOption)
-                <option value="{{ $typeOption->value }}">{{ $typeOption->label() }}</option>
-            @endforeach
-        </select>
+        <x-select wire:model.live="tenantTypeFilter" chip
+            :options="collect(['' => 'Tenant type'])->merge(collect($tenantTypes)->mapWithKeys(fn ($t) => [$t->value => $t->label()]))" />
 
-        <select wire:model.live="propertyTypeFilter" class="chip {{ $propertyTypeFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
-            <option value="">Property type</option>
-            @foreach ($usageTypes as $usageOption)
-                <option value="{{ $usageOption->value }}">{{ $usageOption->label() }}</option>
-            @endforeach
-        </select>
+        <x-select wire:model.live="propertyTypeFilter" chip
+            :options="collect(['' => 'Property type'])->merge(collect($usageTypes)->mapWithKeys(fn ($u) => [$u->value => $u->label()]))" />
 
         @if ($q !== '' || $statusFilter !== '' || $tenantTypeFilter !== '' || $propertyTypeFilter !== '')
             <button wire:click="clearFilters" class="btn-subtle h-8 px-2 text-12">Clear filters</button>
@@ -299,10 +264,10 @@
             {{-- header --}}
             <div class="flex items-start gap-3 border-b border-line-2 px-5 py-4">
                 <div class="min-w-0 flex-1">
-                    <div class="mb-1 flex items-center gap-2 text-12 text-muted">
-                        <span>{{ $lease->agreement_number }}</span><span>·</span><span>{{ $lease->property->land_number }}</span>
+                    <div class="mb-1 flex items-center gap-2 text-11 font-bold uppercase tracking-[0.08em] text-faint">
+                        <span>{{ $lease->agreement_number }}</span><span>·</span><span>Land No. {{ $lease->property->land_number }}</span>
                     </div>
-                    <h2 class="truncate text-20 font-semibold text-ink">{{ $lease->property->name }}</h2>
+                    <h2 class="truncate text-24 font-bold text-ink">{{ $lease->property->name }}</h2>
                 </div>
                 <button wire:click="closeLease" class="icon-btn" aria-label="Close">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -310,55 +275,57 @@
             </div>
 
             {{-- action bar --}}
-            <div class="flex flex-wrap items-center gap-2 border-b border-line-2 bg-sunken px-5 py-2.5">
+            <div class="flex flex-wrap items-center gap-2 border-b border-line-2 px-5 py-3">
                 @can('create', \App\Models\Payment::class)
                     @if ($detail['unpaid']->isNotEmpty())
-                        <button wire:click="startPayment({{ $detail['unpaid']->first()->id }})" class="btn-primary">Record payment</button>
+                        <button wire:click="startPayment({{ $detail['unpaid']->first()->id }})" class="btn-primary">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                            Record payment
+                        </button>
                     @endif
                 @endcan
                 @can(\App\Enums\Permission::IssueInvoices->value)
                     @if ($detail['unpaid']->isNotEmpty())
-                        <button wire:click="sendReminder({{ $detail['unpaid']->first()->id }})" class="btn-subtle">Send reminder</button>
+                        <button wire:click="sendReminder({{ $detail['unpaid']->first()->id }})" class="btn-secondary">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                            Send reminder
+                        </button>
                     @endif
                     <a href="{{ route('invoices.index', ['createFor' => $lease->id]) }}" class="btn-subtle">Create invoice</a>
                 @endcan
-                <span class="ml-auto flex items-center gap-2">
-                    @can('configureFineRule', $lease)
-                        <button wire:click="configureFine({{ $lease->id }})" class="btn-subtle">Fine rule</button>
+                @can('configureFineRule', $lease)
+                    <button wire:click="configureFine({{ $lease->id }})" class="btn-subtle">Fine rule</button>
+                @endcan
+                @can('update', $lease)
+                    <button wire:click="edit({{ $lease->id }})" class="btn-subtle ml-auto">Edit</button>
+                @endcan
+                @if ($lease->isActive())
+                    @can('terminate', $lease)
+                        <button wire:click="startTerminate({{ $lease->id }})" class="btn-danger">Terminate</button>
                     @endcan
-                    @if ($lease->isActive())
-                        @can('terminate', $lease)
-                            <button wire:click="startTerminate({{ $lease->id }})" class="btn-subtle text-danger-fg">Terminate</button>
-                        @endcan
-                    @endif
-                    @can('update', $lease)
-                        <button wire:click="edit({{ $lease->id }})" class="btn-subtle">Edit</button>
-                    @endcan
-                </span>
+                @endif
             </div>
 
             {{-- body --}}
-            <div class="flex-1 overflow-y-auto pb-6">
+            <div class="flex-1 overflow-y-auto bg-sunken pb-6">
                 {{-- balance banner --}}
                 @if ($detail['outstanding']->isPositive())
-                    <div class="mx-5 mt-4 flex items-center justify-between rounded-md border px-4 py-3 {{ $detail['overdue_days'] > 0 ? 'border-danger-bg bg-danger-bg/40' : 'border-warning-bg bg-warning-bg/40' }}">
+                    <div class="mx-5 mt-4 flex items-center justify-between rounded-md px-5 py-4 {{ $detail['overdue_days'] > 0 ? 'bg-danger-bg' : 'bg-warning-bg' }}">
                         <div>
-                            <p class="text-12 font-bold uppercase tracking-[0.08em] {{ $detail['overdue_days'] > 0 ? 'text-danger-fg' : 'text-warning-fg' }}">Amount due</p>
-                            <p class="font-display text-24 font-extrabold tracking-[-0.02em] tabular-nums {{ $detail['overdue_days'] > 0 ? 'text-danger-fg' : 'text-warning-fg' }}">{{ $detail['outstanding']->format() }}</p>
+                            <p class="text-12 font-bold uppercase tracking-[0.08em] {{ $detail['overdue_days'] > 0 ? 'text-danger-fg' : 'text-warning-fg' }}">
+                                {{ $detail['overdue_days'] > 0 ? 'Overdue '.$detail['overdue_days'].' days' : 'Amount due · awaiting payment' }}
+                            </p>
+                            <p class="mt-1 font-display text-[28px] font-extrabold leading-8 tracking-[-0.02em] tabular-nums {{ $detail['overdue_days'] > 0 ? 'text-danger-fg' : 'text-warning-fg' }}">{{ $detail['outstanding']->format() }}</p>
                         </div>
-                        @if ($detail['overdue_days'] > 0)
-                            <span class="loz loz-danger">Overdue {{ $detail['overdue_days'] }} days</span>
-                        @else
-                            <span class="loz loz-warning">Awaiting payment</span>
-                        @endif
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="{{ $detail['overdue_days'] > 0 ? 'text-danger-fg' : 'text-warning-fg' }}"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg>
                     </div>
                 @else
-                    <div class="mx-5 mt-4 flex items-center justify-between rounded-md border border-success-bg bg-success-bg/40 px-4 py-3">
+                    <div class="mx-5 mt-4 flex items-center justify-between rounded-md bg-success-bg px-5 py-4">
                         <div>
-                            <p class="text-12 font-bold uppercase tracking-[0.08em] text-success-fg">Amount due</p>
-                            <p class="font-display text-24 font-extrabold tracking-[-0.02em] tabular-nums text-success-fg">MVR 0.00</p>
+                            <p class="text-12 font-bold uppercase tracking-[0.08em] text-success-fg">Amount due · all settled</p>
+                            <p class="mt-1 font-display text-[28px] font-extrabold leading-8 tracking-[-0.02em] tabular-nums text-success-fg">MVR 0.00</p>
                         </div>
-                        <span class="loz loz-success">All settled</span>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-success-fg"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
                     </div>
                 @endif
 
@@ -375,66 +342,93 @@
                     </div>
                 @endif
 
-                {{-- fields grid --}}
-                <div class="grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4">
-                    <div>
-                        <p class="fl">Status</p>
-                        <span class="loz mt-1 {{ match ($lease->status) {
+                {{-- fields card (label / value rows, council DS) --}}
+                <div class="mx-5 mt-4 mb-4 divide-y divide-line-2 rounded-md border border-line bg-surface shadow-card">
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <p class="w-32 shrink-0 text-13 text-muted">Status</p>
+                        <span class="loz {{ match ($lease->status) {
                             \App\Enums\LeaseStatus::Active => 'loz-success',
                             \App\Enums\LeaseStatus::Terminated => 'loz-danger',
                             default => 'loz-neutral',
                         } }}">{{ $lease->status->label() }}</span>
                     </div>
-                    <div><p class="fl">Tenant</p><p class="fv">{{ $lease->tenant->name }}</p></div>
-                    <div><p class="fl">Tenant type</p><p class="fv">{{ $lease->tenant->type->label() }}{{ $lease->tenant->registryNumber() ? ' · '.$lease->tenant->registryNumber() : '' }}</p></div>
-                    <div><p class="fl">Property</p><p class="fv">{{ $lease->property->usage_type->label() }} · {{ number_format($lease->property->size_sqft) }} ft²</p></div>
-                    <div>
-                        <p class="fl">Rent basis</p>
-                        <p class="fv">
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <p class="w-32 shrink-0 text-13 text-muted">Tenant</p>
+                        <p class="min-w-0 flex-1 text-13 font-medium text-ink">{{ $lease->tenant->name }}</p>
+                    </div>
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <p class="w-32 shrink-0 text-13 text-muted">Tenant type</p>
+                        <p class="min-w-0 flex-1 text-13 text-ink">{{ $lease->tenant->type->label() }}{{ $lease->tenant->registryNumber() ? ' · '.$lease->tenant->registryNumber() : '' }}</p>
+                    </div>
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <p class="w-32 shrink-0 text-13 text-muted">Property</p>
+                        <p class="min-w-0 flex-1 text-13 text-ink">{{ $lease->property->usage_type->label() }} · {{ number_format($lease->property->size_sqft) }} ft²</p>
+                    </div>
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <p class="w-32 shrink-0 text-13 text-muted">Rent basis</p>
+                        <p class="min-w-0 flex-1 text-13 text-ink">
                             @if ($lease->rent_basis === \App\Enums\RentBasis::PerSquareFoot)
-                                {{ $lease->rate_laari }} laari/ft² × {{ number_format((int) $lease->area_sqft) }} ft² · {{ $lease->monthlyRent()->format() }}/mo
+                                {{ $lease->rate_laari }} laari/ft² × {{ number_format((int) $lease->area_sqft) }} ft² = {{ $lease->monthlyRent()->format() }}/mo
                             @else
                                 Flat · {{ $lease->monthlyRent()->format() }}/mo
                             @endif
                         </p>
                     </div>
-                    <div><p class="fl">Due day</p><p class="fv">{{ $lease->due_day }}th of each month</p></div>
-                    <div><p class="fl">Lease start</p><p class="fv">{{ $lease->start_date->format('j M Y') }}</p></div>
-                    <div><p class="fl">Expiry</p><p class="fv">{{ $lease->expiry_date->format('j M Y') }}</p></div>
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <p class="w-32 shrink-0 text-13 text-muted">Due day</p>
+                        <p class="min-w-0 flex-1 text-13 text-ink">Day {{ $lease->due_day }} of month</p>
+                    </div>
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <p class="w-32 shrink-0 text-13 text-muted">Lease start</p>
+                        <p class="min-w-0 flex-1 text-13 text-ink">{{ $lease->start_date->format('j M Y') }}</p>
+                    </div>
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <p class="w-32 shrink-0 text-13 text-muted">Expiry</p>
+                        <p class="min-w-0 flex-1 text-13 text-ink">{{ $lease->expiry_date->format('j M Y') }}</p>
+                    </div>
                     @if ($lease->grace_months > 0)
-                        <div><p class="fl">Grace period</p><p class="fv">First {{ $lease->grace_months }} month(s) free</p></div>
+                        <div class="flex items-center gap-4 px-4 py-3">
+                            <p class="w-32 shrink-0 text-13 text-muted">Grace period</p>
+                            <p class="min-w-0 flex-1 text-13 text-ink">First {{ $lease->grace_months }} month(s) free</p>
+                        </div>
                     @endif
                     @if ($lease->hasCsr())
-                        <div><p class="fl">CSR charge</p><p class="fv">{{ $lease->csrAnnualAmount()->format() }}/year ({{ $lease->csr_type->label() }})</p></div>
+                        <div class="flex items-center gap-4 px-4 py-3">
+                            <p class="w-32 shrink-0 text-13 text-muted">CSR charge</p>
+                            <p class="min-w-0 flex-1 text-13 text-ink">{{ $lease->csrAnnualAmount()->format() }}/year ({{ $lease->csr_type->label() }})</p>
+                        </div>
                     @endif
                     @if ($lease->status === \App\Enums\LeaseStatus::Terminated)
-                        <div class="col-span-2"><p class="fl">Termination</p><p class="fv">{{ $lease->terminated_on?->format('j M Y') }} — {{ $lease->termination_reason }}</p></div>
+                        <div class="flex items-center gap-4 px-4 py-3">
+                            <p class="w-32 shrink-0 text-13 text-muted">Termination</p>
+                            <p class="min-w-0 flex-1 text-13 text-ink">{{ $lease->terminated_on?->format('j M Y') }} — {{ $lease->termination_reason }}</p>
+                        </div>
                     @endif
                 </div>
 
                 {{-- fine rule card (show the maths — design PRD goal 3) --}}
-                <div class="mx-5 mb-4 rounded-md border border-line bg-surface">
-                    <div class="flex h-10 items-center justify-between border-b border-line-2 px-4">
-                        <p class="card-title">Fine rule</p>
+                <div class="mx-5 mb-4 rounded-md border border-line bg-surface p-4 shadow-card">
+                    <div class="mb-2.5 flex items-center justify-between">
+                        <p class="font-display text-16 font-bold tracking-[-0.01em] text-ink">Fine rule</p>
                         @if ($detail['rule'])
                             <span class="loz loz-info">{{ $detail['rule']->method->label() }}</span>
                         @else
                             <span class="loz loz-neutral">None</span>
                         @endif
                     </div>
-                    <div class="space-y-1.5 px-4 py-3 text-13 text-subtle">
+                    <div class="space-y-2 text-13 text-muted">
                         @if ($detail['rule'])
-                            <div class="flex justify-between"><span>Method</span><span class="text-ink">{{ $detail['rule']->summary() }}</span></div>
-                            <div class="flex justify-between"><span>Base</span><span class="text-ink">{{ ucfirst($detail['rule']->base->label()) }}</span></div>
-                            <div class="flex justify-between"><span>Allowance</span><span class="text-ink">{{ $detail['rule']->allowance_days }} days</span></div>
+                            <div class="flex justify-between gap-4"><span>Method</span><span class="text-right text-ink">{{ $detail['rule']->summary() }}</span></div>
+                            <div class="flex justify-between gap-4"><span>Base</span><span class="text-right text-ink">{{ ucfirst($detail['rule']->base->label()) }}</span></div>
+                            <div class="flex justify-between gap-4"><span>Allowance</span><span class="text-right text-ink">{{ $detail['rule']->allowance_days }} days</span></div>
                             @if ($detail['rule']->cap_laari !== null)
-                                <div class="flex justify-between"><span>Maximum cap</span><span class="text-ink">{{ \App\Support\Money::fromLaari($detail['rule']->cap_laari)->format() }}</span></div>
+                                <div class="flex justify-between gap-4"><span>Maximum cap</span><span class="text-right tabular-nums text-ink">{{ \App\Support\Money::fromLaari($detail['rule']->cap_laari)->format() }}</span></div>
                             @endif
-                            <div class="flex justify-between"><span>Effective from</span><span class="text-ink">{{ $detail['rule']->effective_from->format('j M Y') }}</span></div>
+                            <div class="flex justify-between gap-4"><span>Effective from</span><span class="text-right text-ink">{{ $detail['rule']->effective_from->format('j M Y') }}</span></div>
                             @if ($detail['overdue_fine'] !== null && $detail['overdue_fine']->isPositive())
-                                <div class="mt-2 flex justify-between border-t border-line-2 pt-2">
-                                    <span>Accrued fine ({{ $detail['overdue_days'] }} days overdue)</span>
-                                    <span class="font-semibold tabular-nums text-danger-fg">{{ $detail['overdue_fine']->format() }}</span>
+                                <div class="mt-2.5 flex justify-between gap-4 border-t border-line-2 pt-2.5">
+                                    <span class="font-semibold text-danger-fg">Accrued fine to date ({{ $detail['overdue_days'] }} days overdue)</span>
+                                    <span class="font-bold tabular-nums text-danger-fg">{{ $detail['overdue_fine']->format() }}</span>
                                 </div>
                             @endif
                         @else
@@ -450,11 +444,8 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="fl">Method</label>
-                                <select wire:model.live="fine_method" class="input mt-1">
-                                    @foreach ($fineMethods as $m)
-                                        <option value="{{ $m->value }}">{{ $m->label() }}</option>
-                                    @endforeach
-                                </select>
+                                <x-select wire:model.live="fine_method" class="mt-1"
+                                    :options="collect($fineMethods)->mapWithKeys(fn ($m) => [$m->value => $m->label()])" />
                                 @error('fine_method') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                             </div>
 
@@ -472,11 +463,8 @@
                                 </div>
                                 <div>
                                     <label class="fl">Base</label>
-                                    <select wire:model="fine_base" class="input mt-1">
-                                        @foreach ($fineBases as $b)
-                                            <option value="{{ $b->value }}">{{ ucfirst($b->label()) }}</option>
-                                        @endforeach
-                                    </select>
+                                    <x-select wire:model="fine_base" class="mt-1"
+                                        :options="collect($fineBases)->mapWithKeys(fn ($b) => [$b->value => ucfirst($b->label())])" />
                                     @error('fine_base') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                                 </div>
                             @else
@@ -516,12 +504,12 @@
                 @endif
 
                 {{-- recent invoices --}}
-                <div class="px-5 pb-2">
-                    <p class="card-title mb-2">Recent invoices</p>
+                <div class="mx-5 mb-4 rounded-md border border-line bg-surface p-4 shadow-card">
+                    <p class="mb-2.5 font-display text-16 font-bold tracking-[-0.01em] text-ink">Recent invoices</p>
                     @if ($detail['recent_invoices']->isEmpty())
                         <p class="text-13 text-muted">No invoices yet for this lease.</p>
                     @else
-                        <div class="overflow-hidden rounded-md border border-line">
+                        <div class="overflow-hidden rounded border border-line-2">
                             <table class="w-full text-13">
                                 <tbody class="divide-y divide-line-2">
                                     @foreach ($detail['recent_invoices'] as $invoice)
@@ -553,20 +541,20 @@
                 </div>
 
                 {{-- activity --}}
-                <div class="px-5 py-4">
-                    <p class="card-title mb-3">Activity</p>
+                <div class="mx-5 rounded-md border border-line bg-surface p-4 shadow-card">
+                    <p class="mb-3 font-display text-16 font-bold tracking-[-0.01em] text-ink">Activity</p>
                     @if ($detail['activity']->isEmpty())
                         <p class="text-13 text-muted">No recorded activity.</p>
                     @else
-                        <ol class="space-y-3 text-13">
+                        <ol class="space-y-3.5 text-13">
                             @foreach ($detail['activity'] as $entry)
                                 <li class="flex gap-3">
-                                    <span class="ava shrink-0 {{ $entry->causer ? 'bg-brand-500' : 'bg-success-fg' }}">
-                                        {{ $entry->causer ? collect(explode(' ', $entry->causer->name))->filter()->map(fn ($w) => mb_substr($w, 0, 1))->take(2)->implode('') : 'SY' }}
+                                    <span class="ava shrink-0 bg-navy">
+                                        {{ $entry->causer ? collect(explode(' ', $entry->causer->name))->filter()->map(fn ($w) => mb_substr($w, 0, 1))->take(2)->implode('') : 'S' }}
                                     </span>
                                     <div>
-                                        <p><span class="font-medium">{{ $entry->causer?->name ?? 'System' }}</span> <span class="text-muted">{{ $entry->description }} {{ $lease->agreement_number }}</span></p>
-                                        <p class="text-12 text-muted">{{ $entry->created_at->format('j M Y · H:i') }}</p>
+                                        <p><span class="font-semibold text-ink">{{ $entry->causer?->name ?? 'System' }}</span> <span class="text-muted">· {{ $entry->description }} {{ $lease->agreement_number }}</span></p>
+                                        <p class="mt-0.5 text-12 text-faint">{{ $entry->created_at->format('j M Y · H:i') }}</p>
                                     </div>
                                 </li>
                             @endforeach
@@ -577,26 +565,22 @@
         </div>
     @endif
 
-    {{-- ============ Modal: record payment (design PRD §5.8) ============ --}}
+    {{-- ============ Modal: record payment (council DS Dialog) ============ --}}
     @if ($paying !== null && $detail !== null)
-        <div wire:click.self="cancelPayment" class="overlay-enter fixed inset-0 z-[60] grid place-items-start justify-center overflow-y-auto bg-navy/40 backdrop-blur-[2px] p-4 sm:p-8">
-            <div class="mt-10 w-full max-w-[480px] rounded-lg bg-surface shadow-overlay" role="dialog" aria-modal="true">
-                <div class="flex items-center justify-between border-b border-line-2 px-5 py-4">
-                    <h3 class="text-16 font-semibold text-ink">Record payment</h3>
-                    <button wire:click="cancelPayment" class="icon-btn" aria-label="Close">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        <div class="overlay-enter fixed inset-0 z-[60] overflow-y-auto bg-navy/40 backdrop-blur-[2px]">
+            <div wire:click.self="cancelPayment" class="flex min-h-full items-center justify-center p-4 sm:p-6">
+            <div class="w-full max-w-[480px] rounded-xl bg-surface shadow-modal" role="dialog" aria-modal="true">
+                <div class="flex items-start justify-between gap-3 px-5 pb-2 pt-5">
+                    <h3 class="text-20 font-bold text-ink">Record payment</h3>
+                    <button wire:click="cancelPayment" class="icon-btn -mr-1 -mt-1" aria-label="Close">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
                     </button>
                 </div>
                 <div class="space-y-4 px-5 py-4">
                     <div>
                         <label class="fl-req">Invoice</label>
-                        <select wire:model.live="payingInvoiceId" class="input mt-1">
-                            @foreach ($detail['unpaid'] as $unpaidInvoice)
-                                <option value="{{ $unpaidInvoice->id }}">
-                                    {{ $unpaidInvoice->number }} — {{ $unpaidInvoice->periodLabel() }} ({{ $unpaidInvoice->outstandingTotal()->format() }} due)
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-select wire:model.live="payingInvoiceId" class="mt-1"
+                            :options="$detail['unpaid']->mapWithKeys(fn ($i) => [$i->id => $i->number.' — '.$i->periodLabel().' ('.$i->outstandingTotal()->format().' due)'])" />
                     </div>
                     <div>
                         <label class="fl-req">Amount received (MVR)</label>
@@ -611,11 +595,8 @@
                         </div>
                         <div>
                             <label class="fl-req">Method</label>
-                            <select wire:model="pay_method" class="input mt-1">
-                                @foreach ($methods as $method)
-                                    <option value="{{ $method->value }}">{{ $method->label() }}</option>
-                                @endforeach
-                            </select>
+                            <x-select wire:model="pay_method" class="mt-1"
+                                :options="collect($methods)->mapWithKeys(fn ($m) => [$m->value => $m->label()])" />
                         </div>
                     </div>
                     <div>
@@ -639,10 +620,11 @@
                         <p class="pt-1 text-11 text-muted">Allocation: rent first, then fine. The fine is computed on the payment date.</p>
                     </div>
                 </div>
-                <div class="flex items-center justify-end gap-2 rounded-b-lg border-t border-line-2 bg-sunken px-5 py-3.5">
+                <div class="flex items-center justify-end gap-2 rounded-b-xl border-t border-line-2 bg-sunken px-5 py-3.5">
                     <button wire:click="cancelPayment" class="btn-subtle">Cancel</button>
                     <button wire:click="confirmPayment" class="btn-primary">Record payment</button>
                 </div>
+            </div>
             </div>
         </div>
     @endif

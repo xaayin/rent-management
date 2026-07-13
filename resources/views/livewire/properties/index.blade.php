@@ -33,12 +33,8 @@
                     </div>
                     <div>
                         <label class="fl">Usage type</label>
-                        <select wire:model="usage_type" class="input mt-1">
-                            <option value="">Select…</option>
-                            @foreach ($usageTypes as $type)
-                                <option value="{{ $type->value }}">{{ $type->label() }}</option>
-                            @endforeach
-                        </select>
+                        <x-select wire:model="usage_type" class="mt-1"
+                            :options="collect($usageTypes)->mapWithKeys(fn ($t) => [$t->value => $t->label()])" />
                         @error('usage_type') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                     </div>
                     <div class="sm:col-span-2">
@@ -47,7 +43,7 @@
                         @error('location_notes') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                     </div>
                 </div>
-                <div class="flex items-center justify-end gap-2 rounded-b-lg border-t border-line-2 bg-sunken px-5 py-3.5">
+                <div class="flex items-center justify-end gap-2 rounded-b-xl border-t border-line-2 bg-sunken px-5 py-3.5">
                     <button type="button" wire:click="cancel" class="btn-subtle">Cancel</button>
                     <button type="submit" class="btn-primary">{{ $editingId ? 'Save changes' : 'Create property' }}</button>
                 </div>
@@ -62,22 +58,14 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
             </span>
             <input type="text" wire:model.live.debounce.300ms="q" placeholder="Filter properties"
-                class="h-8 w-56 rounded border border-line bg-surface pl-8 pr-3 text-13 placeholder:text-muted focus:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
+                class="h-8 w-56 rounded border border-line bg-surface pl-8 pr-3 text-13 shadow-xs transition-[border-color,box-shadow] duration-100 placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-300/40 focus-visible:outline-none">
         </label>
 
-        <select wire:model.live="usageFilter" class="chip {{ $usageFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
-            <option value="">Usage type</option>
-            @foreach ($usageTypes as $usageOption)
-                <option value="{{ $usageOption->value }}">{{ $usageOption->label() }}</option>
-            @endforeach
-        </select>
+        <x-select wire:model.live="usageFilter" chip
+            :options="collect(['' => 'Usage type'])->merge(collect($usageTypes)->mapWithKeys(fn ($u) => [$u->value => $u->label()]))" />
 
-        <select wire:model.live="statusFilter" class="chip {{ $statusFilter !== '' ? 'border-brand-500 text-brand-600' : '' }}">
-            <option value="">Status</option>
-            @foreach ($propertyStatuses as $statusOption)
-                <option value="{{ $statusOption->value }}">{{ $statusOption->label() }}</option>
-            @endforeach
-        </select>
+        <x-select wire:model.live="statusFilter" chip
+            :options="collect(['' => 'Status'])->merge(collect($propertyStatuses)->mapWithKeys(fn ($s) => [$s->value => $s->label()]))" />
 
         @if ($q !== '' || $usageFilter !== '' || $statusFilter !== '')
             <button wire:click="clearFilters" class="btn-subtle h-8 px-2 text-12">Clear filters</button>

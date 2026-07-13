@@ -12,33 +12,28 @@
             <div>
                 <label for="name" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Name</label>
                 <input id="name" type="text" wire:model="name"
-                    class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
+                    class="input ">
                 @error('name') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
             </div>
 
             <div>
                 <label for="email" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Email</label>
                 <input id="email" type="email" wire:model="email"
-                    class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
+                    class="input ">
                 @error('email') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
             </div>
 
             <div>
                 <label for="password" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Temporary password</label>
                 <input id="password" type="password" wire:model="password" autocomplete="new-password"
-                    class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
+                    class="input ">
                 @error('password') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label for="role" class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Role</label>
-                <select id="role" wire:model="role"
-                    class="h-9 w-full rounded border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
-                    <option value="">Select a role…</option>
-                    @foreach ($roles as $roleOption)
-                        <option value="{{ $roleOption->value }}">{{ $roleOption->label() }}</option>
-                    @endforeach
-                </select>
+                <label class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Role</label>
+                <x-select wire:model="role" placeholder="Select a role…"
+                    :options="collect($roles)->mapWithKeys(fn ($r) => [$r->value => $r->label()])" />
                 @error('role') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
             </div>
 
@@ -68,15 +63,9 @@
                         <td class="px-4 py-3 font-medium text-ink">{{ $u->name }}</td>
                         <td class="px-4 py-3 text-subtle">{{ $u->email }}</td>
                         <td class="px-4 py-3">
-                            <select
-                                wire:change="updateRole({{ $u->id }}, $event.target.value)"
-                                class="h-8 rounded border border-line bg-surface px-2 text-[13px] text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300">
-                                @foreach ($roles as $roleOption)
-                                    <option value="{{ $roleOption->value }}" @selected($current === $roleOption->value)>
-                                        {{ $roleOption->label() }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <x-select class="w-48" :value="$current"
+                                :options="collect($roles)->mapWithKeys(fn ($r) => [$r->value => $r->label()])"
+                                x-on:changed="$wire.updateRole({{ $u->id }}, $event.detail)" />
                         </td>
                     </tr>
                 @endforeach

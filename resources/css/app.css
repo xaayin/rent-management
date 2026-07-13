@@ -54,15 +54,18 @@
     --color-discovery-fg: #0f766e;
     --color-teal: #16a9a0; /* brand-support solid */
 
-    /* Radius — soft, generous corners (controls 8px, cards 12px, modals 16px). */
+    /* Radius — soft, generous corners (controls 8px, cards 12px, modals 18px). */
     --radius-sm: 6px;
-    --radius-DEFAULT: 8px;
+    --radius: 8px; /* bare `rounded` (Tailwind v4 reads --radius, not --radius-DEFAULT) */
     --radius-md: 12px;
     --radius-lg: 16px;
+    --radius-xl: 18px;
 
     /* Elevation — soft, low-contrast navy-tinted shadows. */
+    --shadow-xs: 0 1px 2px rgba(29, 43, 69, 0.06);
     --shadow-card: 0 1px 3px rgba(29, 43, 69, 0.08), 0 1px 2px rgba(29, 43, 69, 0.04);
     --shadow-overlay: 0 12px 28px rgba(29, 43, 69, 0.10), 0 4px 10px rgba(29, 43, 69, 0.05);
+    --shadow-modal: 0 24px 48px rgba(29, 43, 69, 0.14);
 
     /* Type scale (design PRD §3.2). */
     --text-11: 11px;
@@ -87,6 +90,10 @@
         font-family: var(--font-display);
         letter-spacing: -0.02em;
     }
+
+    [x-cloak] {
+        display: none !important;
+    }
 }
 
 /*
@@ -100,6 +107,10 @@
 
     .btn-subtle {
         @apply inline-flex whitespace-nowrap h-8 items-center gap-1.5 rounded border border-transparent bg-transparent px-3 text-13 font-semibold text-subtle hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1;
+    }
+
+    .btn-secondary {
+        @apply inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded border border-line bg-surface px-3 text-13 font-semibold text-navy shadow-xs hover:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-1;
     }
 
     .btn-danger {
@@ -191,7 +202,7 @@
     }
 
     .input {
-        @apply h-9 w-full rounded border border-line bg-surface px-3 text-13 text-ink outline-none focus:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-300;
+        @apply h-9 w-full rounded border border-line bg-surface px-3 text-13 text-ink shadow-xs outline-none transition-[border-color,box-shadow] duration-100 placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-300/40 disabled:bg-sunken disabled:opacity-60;
     }
 
     .menu-row {
@@ -199,7 +210,7 @@
     }
 
     .chip {
-        @apply inline-flex h-8 items-center gap-1.5 rounded border border-line bg-surface px-2.5 text-13 text-subtle shadow-[0_1px_2px_rgba(29,43,69,0.06)] hover:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
+        @apply inline-flex h-8 items-center gap-1.5 rounded border border-line bg-surface px-2.5 text-13 text-subtle shadow-xs hover:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
     }
 
     .pg {
