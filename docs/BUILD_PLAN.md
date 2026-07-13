@@ -19,14 +19,21 @@ Work delivered **beyond** the original slices:
   "KULI BIN THAKUGE DHAFTHARU" xlsx directly (`WorkbookRegisterReader` — Thaana dates/rates,
   grace derivation, CSR parsing, synthesised parcel identities), on top of the canonical CSV path.
 - **Full ADS/Jira UI workspace** (see `UI_DESIGN_PRD.md` §11): app shell with Create menu +
-  global search, leases slide-over with action bar, record-payment modal with live allocation,
-  modal create/edit forms on all registry pages, filter chips + pagination on every list page,
-  shared `<x-modal>`/`<x-pagination>`/`<x-toast>` components, toast flags.
+  global search, slide-overs on Leases (detail), Invoices (record payment) and Tenants
+  (drill-down detail), modal create/edit forms on all registry pages, filter chips + pagination
+  on every list page, icon-button row actions with tooltips, shared
+  `<x-modal>`/`<x-pagination>`/`<x-toast>` components, toast flags.
+- **Advance billing** (FR-INV-05): one invoice covering N months or the remaining lease term
+  (`InvoiceGenerator::generateRange`, range-aware monthly run, New-invoice modal with live
+  preview and quick-picks).
+- **Self-service account page** (`/settings/profile`): profile, password change, full 2FA
+  enrolment (QR/TOTP/recovery codes) + login challenge view, and browser-session logout
+  (FR-SEC-03/05, `AuthenticateSession` middleware).
 
 **Remaining backlog** (deliberately deferred, in priority order): supervisor-approval workflow
 for the §6.1 "A" actions → fine waivers + FR-RPT-06 fine report → historical ledger import
 (blocked on receipt-numbering decision, PRD §14.4.37) → email channel → proration →
-configurable usage types → per-lease reminder overrides → 2FA enrolment UI.
+configurable usage types → per-lease reminder overrides.
 
 ---
 

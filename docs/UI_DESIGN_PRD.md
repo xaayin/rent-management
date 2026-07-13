@@ -384,8 +384,10 @@ refine §1–10, the as-built version wins.
   instead of a `⋯` overflow menu — higher discoverability for the finance officer's core task.
 - **No Alpine-dependent behaviour**: overlays/menus use Livewire state, native `<details>`,
   and CSS animation, so every page (including non-Livewire ones) behaves identically.
-- Row-click target on Leases opens the slide-over; other lists keep explicit buttons until
-  their detail slide-overs exist (Tenants/Properties are on the backlog).
+- Row-click opens a slide-over on **Leases** (detail + actions) and **Tenants** (detail with a
+  lease → invoice → payment accordion drill-down); **Invoices** uses a slide-over for the
+  record-payment flow and tooltipped **icon buttons** for row actions. Properties keeps
+  explicit buttons until a detail slide-over exists (backlog).
 
 ---
 

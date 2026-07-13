@@ -694,6 +694,11 @@ guidance lives in `../CLAUDE.md`; UI realisation in `UI_DESIGN_PRD.md` §11.
 
 Approvals workflow (§6.1 A-cells) · fine waivers + FR-RPT-06 fine report · historical ledger
 import (§B.2 #37) · email channel INT-EML-01 · proration FR-INV-08 · configurable usage types
-FR-PRP-04 · reminder overrides FR-NOT-04 · quiet hours beyond the 09:00 send · 2FA enrolment UI
-(FR-SEC-03; columns/trait ready) · property/lease document attachments FR-PRP-05/FR-LSE-07 ·
-data-retention routines (§14.4.41).
+FR-PRP-04 · reminder overrides FR-NOT-04 · quiet hours beyond the 09:00 send ·
+property/lease document attachments FR-PRP-05/FR-LSE-07 · data-retention routines (§14.4.41).
+
+Delivered since this appendix was first written: **advance billing** (FR-INV-05 — one invoice
+covering N months or the remaining term, monthly run made range-aware so FR-INV-06 holds),
+the **tenant detail drill-down** (PRD §10.2 "Tenant detail": consolidated balance, contacts,
+message history, lease → invoice → payment levels), and **2FA enrolment + login challenge +
+session management** (FR-SEC-03/05) on the self-service account page at `/settings/profile`.

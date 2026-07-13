@@ -15,7 +15,9 @@ record payments and issue receipts; and send SMS payment reminders. Users are co
 
 **Status: build-plan Slices 0–8 are complete** (registry, RBAC, auto-invoicing, fine engine,
 payments/receipts/statements/PDFs, SMS reminders, dashboard/reports/exports, legacy import from
-the real workbook). See "Deferred backlog" below for what remains.
+the real workbook), plus post-plan features: advance billing (multi-month/full-term invoices),
+tenant drill-down workspace, and the self-service account page with full 2FA enrolment.
+See "Deferred backlog" below for what remains.
 
 **Read `docs/PRD.md` for the authoritative requirements.** When a requirement ID is referenced
 (e.g. `FR-FIN-01`), find it in the PRD and implement to that.
@@ -33,8 +35,11 @@ the real workbook). See "Deferred backlog" below for what remains.
   on `DB::connection()->getDriverName()` (see `ReportService::incomeByMonth`).
 - **Laravel Scheduler + Queues** (database driver).
 - **Laravel Notifications** with a custom SMS channel (`App\Notifications\Channels\SmsChannel`).
-- **Laravel Fortify** — auth; public registration disabled (staff are admin-created); 2FA
-  columns/trait in place, enrolment UI not built yet.
+- **Laravel Fortify** — auth; public registration disabled (staff are admin-created). Full 2FA:
+  enrolment UI at `/settings/profile` (QR + TOTP confirm + recovery codes, driven by Fortify's
+  action classes, not its HTTP endpoints), login challenge view bound in FortifyServiceProvider.
+  `AuthenticateSession` middleware is appended to the web group (bootstrap/app.php) so password
+  changes / "log out other sessions" invalidate stale sessions.
 - **Pest** — tests. **Laravel Pint** — formatting. Run both at the end of every task.
 
 ### Packages (installed)
@@ -85,7 +90,14 @@ the real workbook). See "Deferred backlog" below for what remains.
   `config/billing.php` (`fine_first` also implemented). The fine is recomputed **as of the
   actual payment date** before allocating. Overpayments are rejected (no credit balances).
 - **Invoice/receipt numbering**: `YYYY/NNN` from locked per-year counter tables
-  (`invoice_sequences`, `receipt_sequences`) — separate sequences, never reused.
+  (`invoice_sequences`, `receipt_sequences`) — separate sequences, never reused. NOTE: the two
+  formats look identical — always label which document type a number refers to.
+- **Advance billing**: one invoice may span N months (`invoices.period_months`,
+  `InvoiceGenerator::generateRange()`; CSR billed once per occurrence in the range). The monthly
+  run is range-aware — months covered by a spanning invoice are skipped (overlap check via
+  `period_start`/`period_end`, not just the unique first-month key). Use
+  `Invoice::periodLabel()` for display ("Jan – Jun 2026"). An advance invoice books entirely
+  into its first month's "billed" reporting figure.
 - **SMS**: `SmsSender` interface with `log` (default), `null` and `msgowl` drivers
   (`config/sms.php`; MsgOwl: POST `{endpoint}/messages`, `Authorization: AccessKey …`,
   recipients as bare digits, 429 retry with back-off). The channel logs EVERY attempt to
@@ -132,10 +144,19 @@ The visual source of truth is `design/ui-prototype.html` (ADS/Jira idiom) and
   name + id tiebreak). Page size 10. Filter-aware empty states.
 - **Create/edit forms are modals** (`<x-modal>`, `:wide="true"` for long forms like the
   lease). The top-bar **Create menu** deep-links with `?create=1` (handled in `mount()`).
-- **Leases workspace**: row click opens a **slide-over** (max 560px) with amount-due banner,
-  field grid, fine-rule card (show the maths), recent invoices, activity timeline, and a
-  permission-gated action bar (Record payment / Send reminder / Fine rule / Terminate / Edit).
-  The record-payment modal shows the live rent/fine allocation for the chosen payment date.
+- **Slide-overs (560px) are the detail/action surface** — three exist; follow their pattern
+  (backdrop + Esc via a `closeOverlays()` that unwinds overlays top-first):
+  - **Leases**: row click → amount-due banner, field grid, fine-rule card (show the maths),
+    recent invoices, activity timeline, permission-gated action bar (Record payment / Send
+    reminder / Create invoice / Fine rule / Terminate / Edit).
+  - **Invoices**: Record-payment slide-over — due summary, form, live rent/fine allocation for
+    the chosen payment date, payments list with receipt/reverse actions.
+  - **Tenants**: detail slide-over with consolidated balance (FR-TEN-05), contacts, message
+    history, and an accordion drill-down lease → invoices → payments.
+- **Row actions are icon buttons** (`icon-btn` + inline SVG) with `title` tooltips AND
+  `aria-label`s — never icon-only without both. The advance-billing "New invoice" modal
+  pre-suggests the lease's next unbilled month and quick-picks 1/3/6/12 months or
+  "until lease end", with a live preview that surfaces range conflicts before submit.
 - **Money display**: right-aligned, `tabular-nums`, formatted by `Money::format()`.
   **Status**: always a lozenge with a text label, mapped per UI_DESIGN_PRD §3.1 — never
   colour alone. One primary (blue) button per view.
@@ -148,7 +169,9 @@ The visual source of truth is `design/ui-prototype.html` (ADS/Jira idiom) and
   FineBreakdown, InvoiceFineApplier, PaymentRecorder, ReceiptNumberGenerator), `Reminders/`,
   `Reporting/ReportService`, `Import/`, `Sms/`.
 - Livewire pages: `app/Livewire/{Dashboard,Leases,Invoices,Tenants,Properties,Reports,Settings}`.
-  Shared form logic in `app/Livewire/Concerns/InteractsWithPayments`.
+  Shared form logic in `app/Livewire/Concerns/InteractsWithPayments`. `Settings/Profile` is the
+  self-service account page (`/settings/profile`, linked from the top-bar user chip, auth-only —
+  no role gate; it manages only the signed-in user's own account).
 - Jobs: `GenerateInvoices`, `SendPaymentReminders`. Commands: `leases:expire`,
   `invoices:generate`, `invoices:refresh-fines`, `import:register`.
 - Schedule (routes/console.php): 00:05 expire · monthly 1st 00:10 invoices · 00:15 fines ·
@@ -167,7 +190,7 @@ npm run dev                     # or: npm run build
 php artisan serve
 php artisan queue:work
 php artisan schedule:work
-./vendor/bin/pest               # test suite (~240 tests) — must stay green
+./vendor/bin/pest               # test suite (~260 tests) — must stay green
 ./vendor/bin/pint               # format — run before finishing any task
 
 # Operations
@@ -185,9 +208,11 @@ example.com — each sees only what §6.1 allows; supervisor has the widest UI.
   terminate) — permission model is ready, workflow is not.
 - Fine waivers + FR-RPT-06 fine report (accrued/collected/waived).
 - Historical ledger import (old invoices/receipts; receipt-sequence continuation = PRD §14.4.37).
-- Email channel (INT-EML-01); MsgOwl delivery-status callbacks; 2FA enrolment UI.
+- Email channel (INT-EML-01); MsgOwl delivery-status callbacks.
 - Proration (FR-INV-08); admin-configurable usage types (FR-PRP-04); per-lease/tenant reminder
-  overrides (FR-NOT-04); tenant-detail slide-over on the Tenants page.
+  overrides (FR-NOT-04).
+- Spreading an advance invoice's "billed" figure across its covered months in reports
+  (currently books into the first month).
 
 ## Working agreement
 
