@@ -5,7 +5,7 @@
     <title>Income report — {{ $year }}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #172B4D; font-size: 12px; padding: 40px; }
+        body { font-family: 'Noto Sans Thaana', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #172B4D; font-size: 12px; padding: 40px; }
         h1 { font-size: 20px; margin-bottom: 2px; }
         h2 { font-size: 13px; margin: 22px 0 8px; }
         .muted { color: #626F86; }
@@ -16,6 +16,7 @@
         .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .total-row td { border-top: 2px solid #172B4D; border-bottom: none; font-weight: 700; }
     </style>
+    @include('pdf.partials.fonts')
 </head>
 <body>
     <div class="header">

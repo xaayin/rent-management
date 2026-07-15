@@ -47,9 +47,14 @@ See "Deferred backlog" below for what remains.
 - `spatie/laravel-activitylog` **v5** — audit trail. Note v5 namespaces:
   `Spatie\Activitylog\Models\Concerns\LogsActivity`, `Spatie\Activitylog\Support\LogOptions`,
   and `dontLogEmptyChanges()` (not `dontSubmitEmptyLogs()`).
-- `spatie/laravel-pdf` + `spatie/browsershot` — invoice/receipt/report PDFs. Requires the
-  project-local `puppeteer` npm package and a downloaded `chrome-headless-shell`
-  (`npx puppeteer browsers install chrome-headless-shell`).
+- `spatie/laravel-pdf` **v2** (driver-based) + `spatie/browsershot` — invoice/receipt/report
+  PDFs. Locally the default `browsershot` driver needs the project-local `puppeteer` npm
+  package and a downloaded `chrome-headless-shell`
+  (`npx puppeteer browsers install chrome-headless-shell`). **The driver is swappable via
+  `LARAVEL_PDF_DRIVER` (`config/laravel-pdf.php`) with no code change** — hosts without Node
+  or Chrome (Laravel Cloud) must use `cloudflare`/`gotenberg`, or they fail with "Cannot find
+  module 'puppeteer'". See `docs/DEPLOYMENT.md`. **Never switch to `dompdf`**: it cannot shape
+  Thaana and doesn't support the letterhead layout.
 - `openspout/openspout` — reads the council's real xlsx register for `import:register`.
 
 ## Hard rules (non-negotiable)
@@ -178,7 +183,11 @@ The visual source of truth is `design/ui-prototype.html` (ADS/Jira idiom) and
   09:00 reminders.
 - Enums in `app/Enums/` (backed, with `label()`); policies per model in `app/Policies/`;
   migrations use `bigInteger` laari money columns.
-- PDFs: `resources/views/pdf/*` (self-contained inline CSS, no Vite).
+- PDFs: `resources/views/pdf/*` (self-contained inline CSS, no Vite). Each template embeds
+  the council lockup and **Noto Sans Thaana** as base64 (`pdf/partials/fonts.blade.php`) so a
+  document renders identically on any driver — hosts other than macOS ship no Thaana font and
+  would print tenant names as tofu boxes. Keep the `unicode-range` (it confines the face to
+  Thaana so Latin text is untouched); a test asserts every template embeds it.
 
 ## Commands
 

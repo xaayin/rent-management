@@ -5,7 +5,7 @@
     <title>Arrears report — {{ $today->format('j F Y') }}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #172B4D; font-size: 12px; padding: 40px; }
+        body { font-family: 'Noto Sans Thaana', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #172B4D; font-size: 12px; padding: 40px; }
         h1 { font-size: 20px; margin-bottom: 2px; }
         .muted { color: #626F86; }
         .header { display: flex; justify-content: space-between; margin-bottom: 24px; border-bottom: 2px solid #172B4D; padding-bottom: 14px; }
@@ -16,6 +16,7 @@
         .total-row td { border-top: 2px solid #172B4D; border-bottom: none; font-weight: 700; }
         .danger { color: #AE2E24; }
     </style>
+    @include('pdf.partials.fonts')
 </head>
 <body>
     <div class="header">

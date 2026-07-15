@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Billing\InvoiceGenerator;
 use App\Services\Billing\PaymentRecorder;
+use App\Services\Reporting\ReportService;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -32,6 +33,28 @@ function statementUser(string $role): User
     $user->assignRole($role);
 
     return $user;
+}
+
+/**
+ * The bindings each PDF view needs to render standalone.
+ */
+function pdfViewData(string $view): array
+{
+    [, $invoice, $payment] = tenantWithLedger();
+    $reports = app(ReportService::class);
+    $today = CarbonImmutable::parse('2026-02-01');
+
+    return match ($view) {
+        'pdf.invoice' => ['invoice' => $invoice->load('lineItems')],
+        'pdf.receipt' => ['payment' => $payment],
+        'pdf.arrears-report' => ['rows' => $reports->arrears($today), 'today' => $today],
+        'pdf.income-report' => [
+            'year' => 2026,
+            'months' => $reports->incomeByMonth(2026),
+            'byPropertyType' => $reports->incomeByPropertyType(2026),
+            'byTenantType' => $reports->incomeByTenantType(2026),
+        ],
+    };
 }
 
 /**
@@ -200,3 +223,19 @@ it('lets a supervisor reverse a payment from the screen but not a finance office
     expect($payment->fresh()->isReversed())->toBeTrue()
         ->and(Payment::count())->toBe(2);
 });
+
+/**
+ * The register holds Thaana (Dhivehi) tenant and property names. Every host
+ * that renders these documents in production — slim Linux containers, hosted
+ * renderers like Gotenberg/Cloudflare — ships no Thaana font, so the face has
+ * to travel inside the document or those names render as tofu boxes. It only
+ * looks right locally because macOS happens to ship one. See docs/DEPLOYMENT.md.
+ */
+it('embeds the Thaana webfont in every PDF template', function (string $view) {
+    expect(view($view, pdfViewData($view))->render())
+        ->toContain('@font-face')
+        ->toContain('Noto Sans Thaana')
+        ->toContain('data:font/woff2;base64,')
+        // Confines the face to Thaana codepoints so Latin text is untouched.
+        ->toContain('U+0780-07B1');
+})->with(['pdf.invoice', 'pdf.receipt', 'pdf.arrears-report', 'pdf.income-report']);

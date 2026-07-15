@@ -6,7 +6,7 @@
     <style>
         /* Kanduhulhudhoo Council letterhead palette (design/council-ds). */
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #12203A; font-size: 13px; padding: 40px; }
+        body { font-family: 'Noto Sans Thaana', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #12203A; font-size: 13px; padding: 40px; }
         h1 { font-size: 22px; margin-bottom: 2px; letter-spacing: -0.02em; }
         .muted { color: #6B7888; }
         .letterhead { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 2px solid #1D2B45; padding-bottom: 16px; }
@@ -22,6 +22,7 @@
         .total-row td { border-top: 2px solid #1D2B45; border-bottom: none; font-weight: 700; font-size: 15px; }
         .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #DBE1E8; font-size: 12px; color: #6B7888; }
     </style>
+    @include('pdf.partials.fonts')
 </head>
 <body>
     <div class="letterhead">
