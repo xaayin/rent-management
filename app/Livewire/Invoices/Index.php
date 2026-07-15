@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Livewire\Invoices;
 
+use App\Enums\ApprovalAction;
 use App\Enums\InvoiceStatus;
 use App\Enums\LeaseStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\TenantType;
 use App\Enums\UsageType;
+use App\Exceptions\InvalidApprovalException;
 use App\Exceptions\InvalidInvoiceRangeException;
 use App\Exceptions\InvalidPaymentException;
 use App\Jobs\GenerateInvoices;
@@ -16,6 +18,7 @@ use App\Livewire\Concerns\InteractsWithPayments;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\Payment;
+use App\Services\Approvals\ApprovalService;
 use App\Services\Billing\InvoiceGenerator;
 use App\Services\Billing\PaymentRecorder;
 use App\Support\Money;
@@ -299,6 +302,31 @@ class Index extends Component
         $this->validate([
             'reversal_reason' => ['required', 'string', 'max:2000'],
         ]);
+
+        /*
+         * §6.1 marks "reverse a payment" `A` for Finance Officers: they may
+         * start it, but a supervisor decides. Supervisors hold the "without
+         * approval" variant and reverse immediately, exactly as before.
+         */
+        if (! $this->currentUser()->can('reverseDirectly', $payment)) {
+            try {
+                app(ApprovalService::class)->request(
+                    $this->currentUser(),
+                    ApprovalAction::ReversePayment,
+                    $payment,
+                    $this->reversal_reason,
+                );
+            } catch (InvalidApprovalException $e) {
+                $this->addError('reversal_reason', $e->getMessage());
+
+                return;
+            }
+
+            $this->reset('reversingPaymentId', 'reversal_reason');
+            session()->flash('status', "Reversal of receipt {$payment->receipt_number} sent to a supervisor for approval.");
+
+            return;
+        }
 
         try {
             app(PaymentRecorder::class)->reverse(

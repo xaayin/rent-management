@@ -242,11 +242,17 @@
                                         @if ($reversingPaymentId === $payment->id)
                                             <tr class="bg-danger-bg/20">
                                                 <td colspan="3" class="px-3 py-2.5">
+                                                    @php $directReverse = auth()->user()->can('reverseDirectly', $payment); @endphp
                                                     <label class="fl text-danger-fg">Reason for reversing {{ $payment->receipt_number }}</label>
                                                     <input type="text" wire:model="reversal_reason" class="input mt-1.5">
                                                     @error('reversal_reason') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                                                    @unless ($directReverse)
+                                                        <p class="mt-1.5 text-12 text-subtle">A supervisor reviews this before the payment is reversed. Your reason is what they see.</p>
+                                                    @endunless
                                                     <div class="mt-2 flex gap-2">
-                                                        <button wire:click="confirmReverse" class="btn-danger">Confirm reversal</button>
+                                                        <button wire:click="confirmReverse" class="btn-danger">
+                                                            {{ $directReverse ? 'Confirm reversal' : 'Send for approval' }}
+                                                        </button>
                                                         <button wire:click="$set('reversingPaymentId', null)" class="btn-subtle">Cancel</button>
                                                     </div>
                                                 </td>

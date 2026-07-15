@@ -93,13 +93,7 @@ class PaymentRecorder
         CarbonImmutable $date,
         ?User $recordedBy = null,
     ): Payment {
-        if ($payment->isReversal()) {
-            throw InvalidPaymentException::cannotReverseReversal();
-        }
-
-        if ($payment->isReversed()) {
-            throw InvalidPaymentException::alreadyReversed();
-        }
+        $this->assertReversible($payment);
 
         return DB::transaction(function () use ($payment, $reason, $date, $recordedBy): Payment {
             $reversal = Payment::create([
@@ -121,6 +115,25 @@ class PaymentRecorder
 
             return $reversal;
         });
+    }
+
+    /**
+     * Whether this row may be reversed at all. Public because the approvals
+     * workflow has to ask the same question before queueing a reversal for a
+     * supervisor, and again before carrying it out — one definition, so the two
+     * paths can never disagree about what is reversible.
+     *
+     * @throws InvalidPaymentException
+     */
+    public function assertReversible(Payment $payment): void
+    {
+        if ($payment->isReversal()) {
+            throw InvalidPaymentException::cannotReverseReversal();
+        }
+
+        if ($payment->isReversed()) {
+            throw InvalidPaymentException::alreadyReversed();
+        }
     }
 
     /**

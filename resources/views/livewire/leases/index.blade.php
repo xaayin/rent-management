@@ -299,9 +299,12 @@
                 @can('update', $lease)
                     <button wire:click="edit({{ $lease->id }})" class="btn-subtle ml-auto">Edit</button>
                 @endcan
-                @if ($lease->isActive())
+                @if ($lease->isActive() && ! $detail['termination_request']?->isPending())
                     @can('terminate', $lease)
-                        <button wire:click="startTerminate({{ $lease->id }})" class="btn-danger">Terminate</button>
+                        {{-- Land Officers may start this; a supervisor decides (§6.1 `A`). --}}
+                        <button wire:click="startTerminate({{ $lease->id }})" class="btn-danger">
+                            {{ auth()->user()->can('terminateDirectly', $lease) ? 'Terminate' : 'Request termination' }}
+                        </button>
                     @endcan
                 @endif
             </div>
@@ -329,14 +332,47 @@
                     </div>
                 @endif
 
+                {{-- termination awaiting / refused by a supervisor (§6.1 `A`) --}}
+                @php $termRequest = $detail['termination_request']; @endphp
+                @if ($termRequest?->isPending())
+                    <div class="mx-5 mt-4 rounded-md border border-warning-bg bg-warning-bg/50 px-4 py-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-12 font-bold uppercase tracking-[0.08em] text-warning-fg">Termination awaiting approval</p>
+                                <p class="mt-1 text-13 text-ink">“{{ $termRequest->reason }}”</p>
+                                <p class="mt-0.5 text-12 text-muted">
+                                    Requested by {{ $termRequest->requester->name }} · {{ $termRequest->requested_at->format('j M Y · H:i') }}
+                                </p>
+                            </div>
+                            @can('cancel', $termRequest)
+                                <button wire:click="withdrawTermination({{ $termRequest->id }})" class="btn-subtle shrink-0">Withdraw</button>
+                            @endcan
+                        </div>
+                    </div>
+                @elseif ($termRequest?->status === \App\Enums\ApprovalStatus::Rejected && $lease->isActive())
+                    <div class="mx-5 mt-4 rounded-md border border-line bg-surface px-4 py-3">
+                        <p class="text-12 font-bold uppercase tracking-[0.08em] text-muted">Termination rejected</p>
+                        <p class="mt-1 text-13 text-ink">“{{ $termRequest->decision_note }}”</p>
+                        <p class="mt-0.5 text-12 text-muted">
+                            {{ $termRequest->decider?->name }} · {{ $termRequest->decided_at?->format('j M Y') }}
+                        </p>
+                    </div>
+                @endif
+
                 {{-- terminate confirm --}}
                 @if ($terminatingId === $lease->id)
+                    @php $direct = auth()->user()->can('terminateDirectly', $lease); @endphp
                     <div class="mx-5 mt-4 rounded-md border border-danger-bg bg-danger-bg/30 p-4">
                         <label class="fl text-danger-fg">Reason for terminating {{ $lease->agreement_number }}</label>
                         <input type="text" wire:model="termination_reason" class="input mt-1.5">
                         @error('termination_reason') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                        @unless ($direct)
+                            <p class="mt-1.5 text-12 text-subtle">A supervisor reviews this before the lease is terminated. Your reason is what they see.</p>
+                        @endunless
                         <div class="mt-3 flex gap-2">
-                            <button wire:click="confirmTerminate" class="btn-danger">Confirm termination</button>
+                            <button wire:click="confirmTerminate" class="btn-danger">
+                                {{ $direct ? 'Confirm termination' : 'Send for approval' }}
+                            </button>
                             <button wire:click="$set('terminatingId', null)" class="btn-subtle">Cancel</button>
                         </div>
                     </div>

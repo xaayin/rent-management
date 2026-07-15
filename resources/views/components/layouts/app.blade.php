@@ -140,6 +140,18 @@
                     </a>
                 @endcan
 
+                {{-- Supervisor approvals for the §6.1 `A` actions. --}}
+                @can('viewAny', \App\Models\ApprovalRequest::class)
+                    @php $pendingApprovals = app(\App\Services\Approvals\ApprovalService::class)->pendingCountFor($user); @endphp
+                    <a href="{{ route('approvals.index') }}" class="nav-item {{ request()->routeIs('approvals.*') ? 'nav-item-active' : '' }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        Approvals
+                        @if ($pendingApprovals > 0)
+                            <span class="ml-auto rounded-full bg-danger-bg px-1.5 py-0.5 text-11 font-semibold text-danger-fg">{{ $pendingApprovals }}</span>
+                        @endif
+                    </a>
+                @endcan
+
                 @canany([\App\Enums\Permission::ManageUsers->value, \App\Enums\Permission::ConfigureNotifications->value])
                     <div class="my-2 border-t border-line-2"></div>
                     <p class="px-3 pb-1 pt-2 text-11 font-bold uppercase tracking-[0.08em] text-faint">Settings</p>

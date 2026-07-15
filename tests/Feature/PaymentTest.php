@@ -230,7 +230,11 @@ it('enforces the §6.1 matrix on recording and reversing payments', function () 
         ->and($supervisor->can('create', Payment::class))->toBeTrue()
         ->and($admin->can('create', Payment::class))->toBeFalse()      // matrix: Admin '–'
         ->and($landOfficer->can('create', Payment::class))->toBeFalse()
-        // Reversal is approval-gated: only the Supervisor acts directly.
+        // Reversal is approval-gated: Finance may START one (it goes to a
+        // supervisor for approval); only the Supervisor reverses unreviewed.
         ->and($supervisor->can('reverse', $payment))->toBeTrue()
-        ->and($finance->can('reverse', $payment))->toBeFalse();
+        ->and($finance->can('reverse', $payment))->toBeTrue()
+        ->and($supervisor->can('reverseDirectly', $payment))->toBeTrue()
+        ->and($finance->can('reverseDirectly', $payment))->toBeFalse()
+        ->and($admin->can('reverse', $payment))->toBeFalse();          // matrix: Admin '–'
 });

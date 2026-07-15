@@ -13,8 +13,11 @@ use App\Models\User;
  * (PRD §6.1 "Create / amend leases").
  *
  * Terminating a lease is `A` for Land Officers (requires approval) and `✓` for
- * Supervisors. Until the approvals workflow exists (Slice 4/5), only users who
- * may act without approval — Supervisors — can terminate directly.
+ * Supervisors. The two are separate abilities: `terminate` asks "may you START
+ * this?" — which a Land Officer may, by filing an approval request — while
+ * `terminateDirectly` asks "may you do it right now, unreviewed?", which only a
+ * Supervisor may. Gate the button on the former and the immediate action on the
+ * latter; see App\Services\Approvals\ApprovalService.
  */
 class LeasePolicy
 {
@@ -33,7 +36,18 @@ class LeasePolicy
         return $user->hasPermissionTo(Permission::ManageLeases->value);
     }
 
+    /**
+     * May start a termination — directly, or by requesting approval.
+     */
     public function terminate(User $user, Lease $lease): bool
+    {
+        return $user->mayInitiate(Permission::TerminateLeases);
+    }
+
+    /**
+     * May terminate with immediate effect, without supervisor review.
+     */
+    public function terminateDirectly(User $user, Lease $lease): bool
     {
         return $user->mayActWithoutApproval(Permission::TerminateLeases);
     }

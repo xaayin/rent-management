@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Leases;
 
+use App\Enums\ApprovalAction;
 use App\Enums\CsrType;
 use App\Enums\FineBase;
 use App\Enums\FineMethod;
@@ -13,11 +14,14 @@ use App\Enums\PaymentMethod;
 use App\Enums\RentBasis;
 use App\Enums\TenantType;
 use App\Enums\UsageType;
+use App\Exceptions\InvalidApprovalException;
 use App\Livewire\Concerns\InteractsWithPayments;
+use App\Models\ApprovalRequest;
 use App\Models\FineRule;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\Tenant;
+use App\Services\Approvals\ApprovalService;
 use App\Support\Money;
 use Illuminate\Contracts\View\View;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -331,10 +335,54 @@ class Index extends Component
             'termination_reason' => ['required', 'string', 'max:2000'],
         ]);
 
+        /*
+         * §6.1 marks "terminate a lease" `A` for Land Officers: they may start
+         * it, but a supervisor decides. Supervisors hold the "without approval"
+         * variant and act immediately, exactly as before.
+         */
+        if (! $this->currentUser()->can('terminateDirectly', $lease)) {
+            try {
+                app(ApprovalService::class)->request(
+                    $this->currentUser(),
+                    ApprovalAction::TerminateLease,
+                    $lease,
+                    $this->termination_reason,
+                );
+            } catch (InvalidApprovalException $e) {
+                $this->addError('termination_reason', $e->getMessage());
+
+                return;
+            }
+
+            $this->reset('terminatingId', 'termination_reason');
+            session()->flash('status', 'Termination sent to a supervisor for approval.');
+
+            return;
+        }
+
         $lease->terminate($this->termination_reason);
 
         $this->reset('terminatingId', 'termination_reason');
         session()->flash('status', 'Lease terminated.');
+    }
+
+    /**
+     * Withdraw a termination request the current user filed themselves.
+     */
+    public function withdrawTermination(int $requestId): void
+    {
+        $request = ApprovalRequest::findOrFail($requestId);
+        $this->authorize('cancel', $request);
+
+        try {
+            app(ApprovalService::class)->cancel($request, $this->currentUser());
+        } catch (InvalidApprovalException $e) {
+            session()->flash('status', $e->getMessage());
+
+            return;
+        }
+
+        session()->flash('status', 'Termination request withdrawn.');
     }
 
     public function configureFine(int $id): void
@@ -513,6 +561,19 @@ class Index extends Component
                 ? (int) Carbon::parse($oldestOverdue->due_date)->diffInDays(today())
                 : 0,
             'overdue_fine' => $oldestOverdue?->fine(),
+            /*
+             * The most recent termination request, if any. Shown so a Land
+             * Officer sees their request is queued rather than filing it again,
+             * and sees a supervisor's reason if it was turned down.
+             */
+            'termination_request' => ApprovalRequest::query()
+                ->where('action', ApprovalAction::TerminateLease->value)
+                ->where('subject_type', $lease->getMorphClass())
+                ->where('subject_id', $lease->id)
+                ->with('decider')
+                ->latest('requested_at')
+                ->orderByDesc('id')
+                ->first(),
             'recent_invoices' => $lease->invoices()->orderByDesc('period_start')->take(6)->get(),
             'activity' => Activity::query()
                 ->where('subject_type', Lease::class)

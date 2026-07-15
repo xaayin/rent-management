@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\PaymentMethod;
 use App\Livewire\Invoices\Index as InvoicesIndex;
+use App\Models\ApprovalRequest;
 use App\Models\FineRule;
 use App\Models\Invoice;
 use App\Models\Lease;
@@ -205,13 +206,21 @@ it('blocks recording a payment for a user without the permission', function () {
         ->assertForbidden();
 });
 
-it('lets a supervisor reverse a payment from the screen but not a finance officer', function () {
+it('sends a finance officer reversal for approval, but lets a supervisor reverse outright', function () {
     [, $invoice, $payment] = tenantWithLedger();
 
+    // Finance may start a reversal — it files an approval request (§6.1 `A`)
+    // and leaves the money untouched until a supervisor decides.
     actingAs(statementUser('finance_officer'));
     Livewire::test(InvoicesIndex::class)
         ->call('startReverse', $payment->id)
-        ->assertForbidden();
+        ->set('reversal_reason', 'Cheque bounced.')
+        ->call('confirmReverse')
+        ->assertHasNoErrors();
+
+    expect($payment->fresh()->isReversed())->toBeFalse()
+        ->and(Payment::count())->toBe(1)
+        ->and(ApprovalRequest::pending()->count())->toBe(1);
 
     actingAs(statementUser('supervisor'));
     Livewire::test(InvoicesIndex::class)

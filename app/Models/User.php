@@ -22,12 +22,22 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, LogsActivity, Notifiable, TwoFactorAuthenticatable;
 
+    /*
+     * These three use spatie's checkPermissionTo() — the non-throwing variant
+     * that hasPermissionTo() lacks — because they are called from the app
+     * layout on every page render (the approvals badge). hasPermissionTo()
+     * raises PermissionDoesNotExist for an unregistered permission, which would
+     * turn a missing seed into a 500 on every screen rather than a hidden nav
+     * item. Denying is the safe answer; RolePermissionMatrixTest is what
+     * catches a permission that has genuinely gone missing.
+     */
+
     /**
      * Whether the user may start this action at all (directly or via approval).
      */
     public function mayInitiate(Permission $permission): bool
     {
-        return $this->hasPermissionTo($permission->value);
+        return $this->checkPermissionTo($permission->value);
     }
 
     /**
@@ -38,9 +48,7 @@ class User extends Authenticatable
     {
         $direct = $permission->directVariant();
 
-        return $direct !== null
-            ? $this->hasPermissionTo($direct->value)
-            : $this->hasPermissionTo($permission->value);
+        return $this->checkPermissionTo(($direct ?? $permission)->value);
     }
 
     /**

@@ -16,7 +16,8 @@ record payments and issue receipts; and send SMS payment reminders. Users are co
 **Status: build-plan Slices 0–8 are complete** (registry, RBAC, auto-invoicing, fine engine,
 payments/receipts/statements/PDFs, SMS reminders, dashboard/reports/exports, legacy import from
 the real workbook), plus post-plan features: advance billing (multi-month/full-term invoices),
-tenant drill-down workspace, and the self-service account page with full 2FA enrolment.
+tenant drill-down workspace, the self-service account page with full 2FA enrolment, and the
+supervisor-approval workflow for the §6.1 `A` actions.
 See "Deferred backlog" below for what remains.
 
 **Read `docs/PRD.md` for the authoritative requirements.** When a requirement ID is referenced
@@ -67,7 +68,7 @@ See "Deferred backlog" below for what remains.
    `Payment` throws on ANY update (receipt numbers immutable). Corrections are reversing
    entries (negative payment rows) with a mandatory reason.
 3. **Business logic lives in services** (`app/Services/Billing`, `Reminders`, `Reporting`,
-   `Import`, `Sms`), not in Livewire components or controllers. Livewire components hold only
+   `Approvals`, `Import`, `Sms`), not in Livewire components or controllers. Livewire components hold only
    form state, validation and authorization.
 4. **Authorize on the server for every action** — route `can:` middleware AND in-component
    `$this->authorize()` / policy checks, matching PRD §6.1. Hiding UI is never enough.
@@ -84,8 +85,20 @@ See "Deferred backlog" below for what remains.
 - **Approval-gated actions (§6.1 "A" cells)**: modelled as permission *pairs* — a base
   permission (`terminate leases`, `waive fines`, `reverse payments`) lets a role initiate, and
   a `… without approval` variant lets it act directly. Helpers on `User`: `mayInitiate()`,
-  `mayActWithoutApproval()`, `requiresApprovalFor()`. Until the approvals workflow exists,
-  only direct actors (Supervisor) can perform these actions.
+  `mayActWithoutApproval()`, `requiresApprovalFor()` — all use spatie's **non-throwing**
+  `checkPermissionTo()`, because the approvals badge calls them from the app layout on every
+  page render and `hasPermissionTo()` would 500 the whole UI on an unregistered permission.
+- **Approvals workflow** (`App\Services\Approvals\ApprovalService`): a role that
+  `requiresApprovalFor()` an action files an `ApprovalRequest` instead of acting; a role that
+  `mayActWithoutApproval()` decides it from `/approvals`, and approving replays the action from
+  the request's own reason/payload. Policies split the two questions — `terminate`/`reverse`
+  = may START (initiator or direct actor), `terminateDirectly`/`reverseDirectly` = may act now.
+  Gate buttons on the former, immediate execution on the latter. Guarantees worth keeping:
+  one open request per subject+action (nullable-unique `pending_key`, portable to MySQL *and*
+  SQLite — a partial index is not), approve re-checks under `lockForUpdate()` so two
+  supervisors can't double-apply, and it fails cleanly if the subject moved on meanwhile.
+  `waive_fine` is the third A-cell — add the `ApprovalAction` case + an `execute()` branch when
+  fine waivers land.
 - **Fine engine**: `FineCalculator` returns a `FineBreakdown` DTO (full itemisation, FR-FIN-12).
   Rules are effective-dated append-only rows; the rule applied is the one in force at the
   invoice's **issue date**. The fine accrues daily while principal is outstanding and
@@ -172,8 +185,8 @@ The visual source of truth is `design/ui-prototype.html` (ADS/Jira idiom) and
 
 - Services: `app/Services/Billing/` (InvoiceGenerator, InvoiceNumberGenerator, FineCalculator,
   FineBreakdown, InvoiceFineApplier, PaymentRecorder, ReceiptNumberGenerator), `Reminders/`,
-  `Reporting/ReportService`, `Import/`, `Sms/`.
-- Livewire pages: `app/Livewire/{Dashboard,Leases,Invoices,Tenants,Properties,Reports,Settings}`.
+  `Reporting/ReportService`, `Approvals/ApprovalService`, `Import/`, `Sms/`.
+- Livewire pages: `app/Livewire/{Dashboard,Leases,Invoices,Tenants,Properties,Reports,Approvals,Settings}`.
   Shared form logic in `app/Livewire/Concerns/InteractsWithPayments`. `Settings/Profile` is the
   self-service account page (`/settings/profile`, linked from the top-bar user chip, auth-only —
   no role gate; it manages only the signed-in user's own account).
@@ -213,9 +226,11 @@ example.com — each sees only what §6.1 allows; supervisor has the widest UI.
 
 ## Deferred backlog (flag these when relevant; do not silently re-scope)
 
-- Supervisor-approval workflow for the §6.1 "A" actions (Finance waive/reverse, Land Officer
-  terminate) — permission model is ready, workflow is not.
-- Fine waivers + FR-RPT-06 fine report (accrued/collected/waived).
+- Fine waivers + FR-RPT-06 fine report (accrued/collected/waived). The approvals workflow is
+  built and waits for it: add `ApprovalAction::WaiveFine` + an `ApprovalService::execute()`
+  branch and Finance's `waive fines` A-cell routes itself.
+- Notifying supervisors that a request is waiting (currently the nav badge only — no email
+  channel exists yet, and SMS is tenant-facing).
 - Historical ledger import (old invoices/receipts; receipt-sequence continuation = PRD §14.4.37).
 - Email channel (INT-EML-01); MsgOwl delivery-status callbacks.
 - Proration (FR-INV-08); admin-configurable usage types (FR-PRP-04); per-lease/tenant reminder

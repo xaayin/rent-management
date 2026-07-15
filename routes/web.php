@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\ReceiptPdfController;
 use App\Http\Controllers\ReportExportController;
+use App\Livewire\Approvals\Index as ApprovalsIndex;
 use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Livewire\Invoices\Index as InvoicesIndex;
 use App\Livewire\Leases\Index as LeasesIndex;
@@ -17,6 +18,7 @@ use App\Livewire\Settings\Reminders as ReminderSettings;
 use App\Livewire\Settings\UserManagement;
 use App\Livewire\Tenants\Index as TenantsIndex;
 use App\Livewire\Tenants\Statement as TenantStatement;
+use App\Models\ApprovalRequest;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
@@ -74,6 +76,12 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('/payments/{payment}/receipt', ReceiptPdfController::class)
         ->middleware('can:'.Permission::ViewReports->value)
         ->name('payments.receipt');
+
+    // Gated on the policy, not a single permission: the inbox is for whoever
+    // may decide at least one §6.1 `A` action (see ApprovalRequestPolicy).
+    Route::get('/approvals', ApprovalsIndex::class)
+        ->middleware('can:viewAny,'.ApprovalRequest::class)
+        ->name('approvals.index');
 
     Route::get('/settings/users', UserManagement::class)
         ->middleware('can:'.Permission::ManageUsers->value)

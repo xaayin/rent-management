@@ -222,8 +222,12 @@ it('only lets a supervisor terminate a lease directly', function () {
     $supervisor = registryUser('supervisor');
     $landOfficer = registryUser('land_officer');
 
+    // Both may START a termination (§6.1 marks it `A` for the Land Officer, who
+    // files an approval request) — but only the Supervisor may do it unreviewed.
     expect($supervisor->can('terminate', $lease))->toBeTrue()
-        ->and($landOfficer->can('terminate', $lease))->toBeFalse();
+        ->and($landOfficer->can('terminate', $lease))->toBeTrue()
+        ->and($supervisor->can('terminateDirectly', $lease))->toBeTrue()
+        ->and($landOfficer->can('terminateDirectly', $lease))->toBeFalse();
 
     actingAs($supervisor);
     Livewire::test(LeasesIndex::class)
