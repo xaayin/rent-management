@@ -47,7 +47,7 @@ function pdfViewData(string $view): array
 
     return match ($view) {
         'pdf.invoice' => ['invoice' => $invoice->load('lineItems')],
-        'pdf.receipt' => ['payment' => $payment],
+        'pdf.receipt' => ['receipt' => $payment->receipt],
         'pdf.arrears-report' => ['rows' => $reports->arrears($today), 'today' => $today],
         'pdf.income-report' => [
             'year' => 2026,
@@ -169,7 +169,9 @@ it('renders the invoice PDF HTML with the full fine breakdown (FR-FIN-12)', func
 it('renders the receipt PDF HTML with the allocation split (FR-PAY-02)', function () {
     [, , $payment] = tenantWithLedger();
 
-    $html = view('pdf.receipt', ['payment' => $payment->load('invoice.lease.tenant', 'invoice.lease.property')])->render();
+    $html = view('pdf.receipt', [
+        'receipt' => $payment->receipt->load('tenant', 'payments.invoice.lease.property'),
+    ])->render();
 
     expect($html)
         ->toContain((string) $payment->receipt_number)

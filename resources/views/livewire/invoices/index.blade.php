@@ -135,6 +135,19 @@
         <x-pagination :paginator="$invoices" />
     </div>
 
+    {{-- Collect one payment across the tenant's outstanding invoices (FR-PAY-01).
+         Sits above the per-invoice slide-over: a Finance Officer cannot reach the
+         tenants registry (§6.1), so this is their door to it. --}}
+    @if ($collecting && $collectPreview !== null)
+        <div class="overlay-enter fixed inset-0 z-[60] overflow-y-auto bg-navy/40 backdrop-blur-[2px]">
+            <div wire:click.self="cancelCollect" class="flex min-h-full items-start justify-center p-4 sm:p-6">
+                <div class="mt-8 w-full max-w-[680px]">
+                    <x-collect-payment :preview="$collectPreview" :methods="$methods" />
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- ============ Slide-over: record payment (design PRD §5.7/§5.8) ============ --}}
     @if ($paying !== null)
         @php $payingInvoice = $paying['invoice']; @endphp
@@ -156,6 +169,23 @@
 
             {{-- body --}}
             <div class="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+                {{-- The tenant is usually at the counter clearing everything they
+                     owe, not this one invoice — offer the sweep from here, since
+                     §6.1 keeps a Finance Officer out of the tenants registry. --}}
+                @php $otherOutstanding = $paying['other_outstanding']; @endphp
+                @if ($otherOutstanding['count'] > 0)
+                    <div class="flex items-start justify-between gap-3 rounded-md border border-warning-bg bg-warning-bg/40 px-4 py-3">
+                        <div class="min-w-0">
+                            <p class="text-12 font-bold uppercase tracking-[0.08em] text-warning-fg">Also outstanding</p>
+                            <p class="mt-1 text-13 text-ink">
+                                {{ $payingInvoice->lease->tenant->name }} has {{ $otherOutstanding['count'] }} other unpaid invoice{{ $otherOutstanding['count'] === 1 ? '' : 's' }}
+                                — {{ $otherOutstanding['total']->format() }} across all {{ $otherOutstanding['count'] + 1 }}.
+                            </p>
+                        </div>
+                        <button wire:click="startCollectFor({{ $payingInvoice->lease->tenant_id }})" class="btn-secondary shrink-0">Record one payment</button>
+                    </div>
+                @endif
+
                 {{-- due summary (live for the chosen payment date) --}}
                 <div class="space-y-1.5 rounded-md border border-line-2 bg-sunken p-3 text-13">
                     <div class="flex justify-between"><span class="text-subtle">Rent &amp; charges outstanding</span><span class="tabular-nums">{{ $paying['outstanding_principal']->format() }}</span></div>

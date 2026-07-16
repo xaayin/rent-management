@@ -107,6 +107,15 @@ See "Deferred backlog" below for what remains.
 - **Payments**: allocation is rent(principal incl. CSR)-first then fine, via
   `config/billing.php` (`fine_first` also implemented). The fine is recomputed **as of the
   actual payment date** before allocating. Overpayments are rejected (no credit balances).
+- **Receipts are their own record** (`Receipt`, append-only like `Payment`). ONE handover of
+  money = ONE `YYYY/NNN` number, even when it settles several invoices; the ledger still keeps
+  **one payment row per invoice** (that invariant carries statements, the fine freeze and
+  per-invoice reversal). `payments.receipt_number` is gone — the number lives on the receipt
+  and `Payment::receipt_number` is an accessor reading through it, so call sites are unchanged.
+  Reversal rows have `receipt_id` null and keep their own date/method. Bulk collection is
+  `PaymentRecorder::recordForTenant()`: oldest-due-first, fines refreshed per invoice as of the
+  payment date, overpay rejected across the selected set. Reversing one slice leaves the rest
+  of the receipt intact.
 - **Invoice/receipt numbering**: `YYYY/NNN` from locked per-year counter tables
   (`invoice_sequences`, `receipt_sequences`) — separate sequences, never reused. NOTE: the two
   formats look identical — always label which document type a number refers to.
@@ -187,7 +196,10 @@ The visual source of truth is `design/ui-prototype.html` (ADS/Jira idiom) and
   FineBreakdown, InvoiceFineApplier, PaymentRecorder, ReceiptNumberGenerator), `Reminders/`,
   `Reporting/ReportService`, `Approvals/ApprovalService`, `Import/`, `Sms/`.
 - Livewire pages: `app/Livewire/{Dashboard,Leases,Invoices,Tenants,Properties,Reports,Approvals,Settings}`.
-  Shared form logic in `app/Livewire/Concerns/InteractsWithPayments`. `Settings/Profile` is the
+  Shared form logic in `app/Livewire/Concerns/InteractsWithPayments` and
+  `CollectsTenantPayments` (the latter is a trait, not a page, because §6.1 keeps a Finance
+  Officer *out of* `/tenants` — they reach bulk collection from the Invoices payment
+  slide-over's "also outstanding" banner; a Supervisor reaches it from the tenant slide-over). `Settings/Profile` is the
   self-service account page (`/settings/profile`, linked from the top-bar user chip, auth-only —
   no role gate; it manages only the signed-in user's own account).
 - Jobs: `GenerateInvoices`, `SendPaymentReminders`. Commands: `leases:expire`,

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Receipt {{ $payment->receipt_number }}</title>
+    <title>Receipt {{ $receipt->number }}</title>
     <style>
         /* Kanduhulhudhoo Council letterhead palette (design/council-ds). */
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,52 +34,83 @@
         </div>
     </div>
 
+    @php
+        $first = $receipt->payments->first();
+        $tenant = $receipt->tenant;
+        $principalTotal = \App\Support\Money::fromLaari((int) $receipt->payments->sum('principal_allocated_laari'));
+        $fineTotal = \App\Support\Money::fromLaari((int) $receipt->payments->sum('fine_allocated_laari'));
+    @endphp
+
     <div class="header">
         <div>
             <p class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em">Official payment receipt</p>
         </div>
         <div class="right">
-            <h1>Receipt {{ $payment->receipt_number }}</h1>
-            <p class="muted">Payment date: <strong>{{ $payment->payment_date->format('j F Y') }}</strong></p>
-            <p class="muted">Method: {{ $payment->method->label() }}@if ($payment->reference) · Ref: {{ $payment->reference }}@endif</p>
+            <h1>Receipt {{ $receipt->number }}</h1>
+            <p class="muted">Payment date: <strong>{{ $first->payment_date->format('j F Y') }}</strong></p>
+            <p class="muted">Method: {{ $first->method->label() }}@if ($first->reference) · Ref: {{ $first->reference }}@endif</p>
         </div>
     </div>
 
     <p style="margin-bottom:16px">
-        Received from <strong>{{ $payment->invoice->lease->tenant->name }}</strong>
-        @if ($payment->invoice->lease->tenant->registryNumber())
-            ({{ $payment->invoice->lease->tenant->registryNumber() }})
+        Received from <strong>{{ $tenant->name }}</strong>
+        @if ($tenant->registryNumber())
+            ({{ $tenant->registryNumber() }})
         @endif
-        against invoice <strong>{{ $payment->invoice->number }}</strong>
-        — {{ $payment->invoice->lease->property->name }},
-        {{ $payment->invoice->period_start->format('F Y') }}.
+        —
+        {{-- One handover can settle several invoices, so the receipt itemises
+             where the money went rather than implying a single charge. --}}
+        @if ($receipt->isSplit())
+            {{ $receipt->total()->format() }} applied across {{ $receipt->payments->count() }} invoices.
+        @else
+            against invoice <strong>{{ $first->invoice->number }}</strong>,
+            {{ $first->invoice->lease->property->name }},
+            {{ $first->invoice->period_start->format('F Y') }}.
+        @endif
     </p>
 
     <table>
         <thead>
             <tr>
-                <th>Allocation</th>
+                <th>{{ $receipt->isSplit() ? 'Applied to' : 'Allocation' }}</th>
+                <th class="num">Rent &amp; charges</th>
+                <th class="num">Late fine</th>
                 <th class="num">Amount</th>
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td>Rent &amp; charges</td>
-                <td class="num">{{ $payment->principalAllocated()->format() }}</td>
-            </tr>
-            <tr>
-                <td>Late fine</td>
-                <td class="num">{{ $payment->fineAllocated()->format() }}</td>
-            </tr>
+            @foreach ($receipt->payments as $line)
+                <tr>
+                    <td>
+                        <strong>{{ $line->invoice->number }}</strong>
+                        <span class="muted"> · {{ $line->invoice->periodLabel() }}</span>
+                        <span class="breakdown" style="display:block">{{ $line->invoice->lease->property->name }}</span>
+                    </td>
+                    <td class="num">{{ $line->principalAllocated()->format() }}</td>
+                    <td class="num">{{ $line->fineAllocated()->format() }}</td>
+                    <td class="num">{{ $line->amount()->format() }}</td>
+                </tr>
+            @endforeach
             <tr class="total-row">
                 <td>Total received</td>
-                <td class="num">{{ $payment->amount()->format() }}</td>
+                <td class="num">{{ $principalTotal->format() }}</td>
+                <td class="num">{{ $fineTotal->format() }}</td>
+                <td class="num">{{ $receipt->total()->format() }}</td>
             </tr>
         </tbody>
     </table>
 
     <div class="footer">
-        <p><strong>Balance remaining on invoice {{ $payment->invoice->number }}:</strong> {{ $payment->invoice->outstandingTotal()->format() }}</p>
+        {{-- Only what is still owed: a settled receipt listing "MVR 0.00" eight
+             times buries the one line that matters when something is short. --}}
+        @php $stillOwing = $receipt->payments->filter(fn ($line) => $line->invoice->outstandingTotalLaari() > 0); @endphp
+        @if ($stillOwing->isEmpty())
+            <p><strong>Settled in full</strong> — no balance remaining on {{ $receipt->isSplit() ? 'any of these invoices' : 'this invoice' }}.</p>
+        @else
+            @foreach ($stillOwing as $line)
+                <p><strong>Balance remaining on invoice {{ $line->invoice->number }}:</strong> {{ $line->invoice->outstandingTotal()->format() }}</p>
+            @endforeach
+        @endif
         <p>This receipt was generated by {{ config('app.name') }}. Receipt numbers are sequential and never reissued.</p>
     </div>
 </body>

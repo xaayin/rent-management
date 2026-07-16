@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentType;
 use App\Support\Money;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -24,7 +25,7 @@ class Payment extends Model
     use LogsActivity;
 
     protected $fillable = [
-        'receipt_number',
+        'receipt_id',
         'invoice_id',
         'amount_laari',
         'principal_allocated_laari',
@@ -65,6 +66,28 @@ class Payment extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    /**
+     * The handover this allocation belongs to. Null on reversal rows, which are
+     * corrections rather than money coming in.
+     *
+     * @return BelongsTo<Receipt, $this>
+     */
+    public function receipt(): BelongsTo
+    {
+        return $this->belongsTo(Receipt::class);
+    }
+
+    /**
+     * The receipt number, which now lives on the receipt so that one handover
+     * settling several invoices shares a single number. Kept as an accessor
+     * because it reads as a property of the payment everywhere it is used —
+     * statements, the ledger, receipt PDFs.
+     */
+    protected function receiptNumber(): Attribute
+    {
+        return Attribute::get(fn (): ?string => $this->receipt?->number);
     }
 
     /** @return HasOne<Payment, $this> */
@@ -114,7 +137,7 @@ class Payment extends Model
     {
         return LogOptions::defaults()
             ->logOnly([
-                'receipt_number', 'invoice_id', 'amount_laari',
+                'receipt_id', 'invoice_id', 'amount_laari',
                 'principal_allocated_laari', 'fine_allocated_laari',
                 'payment_date', 'method', 'type', 'reversed_payment_id', 'reversal_reason',
             ])

@@ -12,6 +12,10 @@ use Spatie\LaravelPdf\PdfBuilder;
 /**
  * Printable/PDF receipt for a recorded payment (FR-PAY-01), showing the
  * rent/fine allocation split (FR-PAY-02).
+ *
+ * Addressed by payment row, but rendered for the whole receipt: one handover of
+ * money can settle several invoices, and the tenant is owed a single document
+ * showing where all of it went — not one page per invoice.
  */
 class ReceiptPdfController extends Controller
 {
@@ -19,10 +23,18 @@ class ReceiptPdfController extends Controller
     {
         abort_if($payment->isReversal(), 404);
 
-        $payment->load(['invoice.lease.tenant', 'invoice.lease.property']);
+        $receipt = $payment->receipt;
 
-        return Pdf::view('pdf.receipt', ['payment' => $payment])
+        abort_if($receipt === null, 404);
+
+        $receipt->load([
+            'tenant',
+            'payments.invoice.lease.property',
+            'payments.reversal',
+        ]);
+
+        return Pdf::view('pdf.receipt', ['receipt' => $receipt])
             ->format(Format::A4)
-            ->inline('receipt-'.str_replace('/', '-', (string) $payment->receipt_number).'.pdf');
+            ->inline('receipt-'.str_replace('/', '-', $receipt->number).'.pdf');
     }
 }

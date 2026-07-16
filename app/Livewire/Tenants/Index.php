@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Livewire\Tenants;
 
+use App\Enums\PaymentMethod;
 use App\Enums\TenantType;
+use App\Livewire\Concerns\CollectsTenantPayments;
 use App\Models\Invoice;
 use App\Models\NotificationLog;
 use App\Models\Payment;
@@ -20,7 +22,7 @@ use Livewire\WithPagination;
 #[Layout('components.layouts.app')]
 class Index extends Component
 {
-    use WithPagination;
+    use CollectsTenantPayments, WithPagination;
 
     /** Free-text filter: name, registry number, mobile or email. */
     #[Url]
@@ -121,6 +123,12 @@ class Index extends Component
      */
     public function closeOverlays(): void
     {
+        if ($this->collecting) {
+            $this->cancelCollect();
+
+            return;
+        }
+
         if ($this->showForm) {
             $this->cancel();
 
@@ -128,6 +136,14 @@ class Index extends Component
         }
 
         $this->closeTenant();
+    }
+
+    /**
+     * The slide-over's own entry point: collect from the tenant on screen.
+     */
+    public function startCollect(): void
+    {
+        $this->startCollectFor((int) $this->selectedId);
     }
 
     public function edit(int $id): void
@@ -217,7 +233,9 @@ class Index extends Component
                 ->orderBy('id') // deterministic tiebreak for equal names
                 ->paginate(10),
             'types' => TenantType::cases(),
-            'detail' => $this->tenantDetail(),
+            'detail' => $detail = $this->tenantDetail(),
+            'methods' => PaymentMethod::cases(),
+            'collectPreview' => $this->buildCollectPreview(),
         ]);
     }
 

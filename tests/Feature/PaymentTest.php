@@ -194,8 +194,17 @@ it('never lets a receipt number be edited after issue (FR-PAY-07)', function () 
     $invoice = paymentInvoice();
     $payment = pay($invoice, 50_000, '2026-01-05');
 
-    expect(fn () => $payment->update(['receipt_number' => '2026/999']))
-        ->toThrow(RuntimeException::class);
+    expect($payment->receipt_number)->toBe('2026/001');
+
+    // The number lives on the receipt now — one handover of money can settle
+    // several invoices, so it cannot belong to any single allocation row. The
+    // receipt is append-only, which is what makes the number permanent.
+    expect(fn () => $payment->receipt->update(['number' => '2026/999']))
+        ->toThrow(RuntimeException::class)
+        // ...and the allocation row itself still refuses every edit.
+        ->and(fn () => $payment->update(['amount_laari' => 1]))
+        ->toThrow(RuntimeException::class)
+        ->and($payment->fresh()->receipt_number)->toBe('2026/001');
 });
 
 it('never lets a payment be deleted', function () {

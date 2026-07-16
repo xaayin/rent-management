@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Concerns;
 
+use App\Enums\InvoiceStatus;
 use App\Enums\NotificationStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\Permission;
@@ -164,6 +165,38 @@ trait InteractsWithPayments
             'outstanding_fine' => Money::fromLaari($outstandingFine),
             'outstanding_total' => Money::fromLaari($outstandingPrincipal + $outstandingFine),
             'allocation' => $allocation,
+            'other_outstanding' => $this->otherOutstandingFor($invoice),
+        ];
+    }
+
+    /**
+     * What else this tenant owes beyond the invoice on screen.
+     *
+     * A tenant clearing five months hands over one sum; without this the clerk
+     * has no way to see there are four more invoices behind the one they opened,
+     * and would record five separate payments (and issue five receipts) for a
+     * single handover.
+     *
+     * @return array{count: int, total: Money}
+     */
+    protected function otherOutstandingFor(Invoice $invoice): array
+    {
+        $others = Invoice::query()
+            ->whereHas('lease', fn ($query) => $query->where('tenant_id', $invoice->lease->tenant_id))
+            ->whereKeyNot($invoice->getKey())
+            ->whereIn('status', [
+                InvoiceStatus::Issued->value,
+                InvoiceStatus::PartlyPaid->value,
+                InvoiceStatus::Overdue->value,
+            ])
+            ->get();
+
+        $total = $others->sum(fn (Invoice $other): int => max($other->outstandingTotalLaari(), 0))
+            + max($invoice->outstandingTotalLaari(), 0);
+
+        return [
+            'count' => $others->count(),
+            'total' => Money::fromLaari((int) $total),
         ];
     }
 

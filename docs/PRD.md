@@ -697,7 +697,11 @@ import (§B.2 #37) · email channel INT-EML-01 · proration FR-INV-08 · configu
 FR-PRP-04 · reminder overrides FR-NOT-04 · quiet hours beyond the 09:00 send ·
 property/lease document attachments FR-PRP-05/FR-LSE-07 · data-retention routines (§14.4.41).
 
-Delivered since this appendix was first written: the **supervisor-approval workflow** for the
+Delivered since this appendix was first written: **multi-invoice payment collection** — one
+handover of money is recorded once and allocated oldest-due-first across a tenant's outstanding
+invoices, issuing a single receipt number for it (a `receipts` table now owns the number;
+`payments` keeps one append-only row per invoice). Overpayment stays rejected per §5.4, so the
+amount is capped at what the selected invoices owe · the **supervisor-approval workflow** for the
 §6.1 `A` cells (a Land Officer's termination and a Finance Officer's reversal file an
 `ApprovalRequest`; a Supervisor decides it at `/approvals`, and approving replays the action
 from the request — fine waivers slot in once they exist) · **advance billing** (FR-INV-05 — one invoice

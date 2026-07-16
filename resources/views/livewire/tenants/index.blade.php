@@ -169,8 +169,17 @@
 
             {{-- action bar --}}
             <div class="flex flex-wrap items-center gap-2 border-b border-line-2 px-5 py-3">
+                @can('create', \App\Models\Payment::class)
+                    @if ($detail['balance']->isPositive())
+                        {{-- One handover of money, spread across what they owe (FR-PAY-01). --}}
+                        <button wire:click="startCollect" class="btn-primary">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                            Record payment
+                        </button>
+                    @endif
+                @endcan
                 @can('view reports')
-                    <a href="{{ route('tenants.statement', $t) }}" class="btn-primary">
+                    <a href="{{ route('tenants.statement', $t) }}" class="btn-secondary">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>
                         Statement
                     </a>
@@ -200,6 +209,13 @@
                             <p class="mt-1 font-display text-[28px] font-extrabold leading-8 tracking-[-0.02em] tabular-nums text-success-fg">MVR 0.00</p>
                         </div>
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-success-fg"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                    </div>
+                @endif
+
+                {{-- Collect payment: one amount, spread oldest-first (FR-PAY-01). --}}
+                @if ($collecting && $collectPreview !== null)
+                    <div class="mx-5 mt-4">
+                        <x-collect-payment :preview="$collectPreview" :methods="$methods" />
                     </div>
                 @endif
 

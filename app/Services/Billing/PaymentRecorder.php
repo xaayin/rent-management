@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services\Billing;
 
+use App\Enums\InvoiceStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentType;
 use App\Exceptions\InvalidPaymentException;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Receipt;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -55,32 +59,174 @@ class PaymentRecorder
                 $invoice->refresh();
             }
 
-            $outstandingPrincipal = max($invoice->outstandingPrincipalLaari(), 0);
-            $outstandingFine = max($invoice->outstandingFineLaari(), 0);
+            $receipt = $this->openReceipt($invoice->lease->tenant_id, $paymentDate, $recordedBy);
 
-            if ($amount->laari > $outstandingPrincipal + $outstandingFine) {
+            return $this->applyToInvoice($receipt, $invoice, $amount->laari, $paymentDate, $method, $reference, $recordedBy);
+        });
+    }
+
+    /**
+     * Record ONE handover of money from a tenant and spread it across their
+     * outstanding invoices, oldest due first.
+     *
+     * A tenant who walks in and clears five months at once had to be entered
+     * five times, and left with five receipt numbers for one payment. Here the
+     * clerk records what actually happened — the amount handed over — and the
+     * allocation is derived.
+     *
+     * Oldest-first is the receivables convention, and it is the right default
+     * here for a concrete reason: it clears the oldest debt first, which keeps
+     * the arrears ageing honest rather than leaving a stale balance behind a
+     * freshly-settled one.
+     *
+     * The ledger shape is unchanged — one append-only row per invoice, so
+     * statements, the fine freeze and per-invoice reversal all keep working.
+     * What is new is that those rows share a receipt.
+     *
+     * @param  list<int>|null  $onlyInvoiceIds  Restrict to these invoices (a
+     *                                          disputed one can be left out);
+     *                                          null means every outstanding one.
+     */
+    public function recordForTenant(
+        Tenant $tenant,
+        Money $amount,
+        CarbonImmutable $paymentDate,
+        PaymentMethod $method,
+        ?string $reference = null,
+        ?User $recordedBy = null,
+        ?array $onlyInvoiceIds = null,
+    ): Receipt {
+        if (! $amount->isPositive()) {
+            throw InvalidPaymentException::notPositive();
+        }
+
+        $paymentDate = $paymentDate->startOfDay();
+
+        return DB::transaction(function () use ($tenant, $amount, $paymentDate, $method, $reference, $recordedBy, $onlyInvoiceIds): Receipt {
+            $invoices = $this->outstandingForTenant($tenant, $onlyInvoiceIds);
+
+            // Every invoice's fine is brought up to the actual payment date
+            // before anything is allocated (FR-PAY-02) — the total owed today
+            // is what the amount is checked against.
+            $totalOutstanding = 0;
+
+            foreach ($invoices as $invoice) {
+                if ($invoice->outstandingPrincipalLaari() > 0) {
+                    $this->fineApplier->refreshFine($invoice, $paymentDate);
+                    $invoice->refresh();
+                }
+
+                $totalOutstanding += max($invoice->outstandingTotalLaari(), 0);
+            }
+
+            // No credit balances (§5.4) — the same rule as a single payment,
+            // just summed across the selected invoices.
+            if ($amount->laari > $totalOutstanding) {
                 throw InvalidPaymentException::exceedsOutstanding();
             }
 
-            [$principal, $fine] = $this->allocate($amount->laari, $outstandingPrincipal, $outstandingFine);
+            $receipt = $this->openReceipt($tenant->id, $paymentDate, $recordedBy);
+            $remaining = $amount->laari;
 
-            $payment = Payment::create([
-                'receipt_number' => $this->receipts->next($paymentDate->year),
-                'invoice_id' => $invoice->id,
-                'amount_laari' => $amount->laari,
-                'principal_allocated_laari' => $principal,
-                'fine_allocated_laari' => $fine,
-                'payment_date' => $paymentDate->toDateString(),
-                'method' => $method->value,
-                'reference' => $reference,
-                'type' => PaymentType::Payment->value,
-                'recorded_by' => $recordedBy?->id,
-            ]);
+            foreach ($invoices as $invoice) {
+                if ($remaining <= 0) {
+                    break;   // the money ran out; later invoices stay untouched
+                }
 
-            $invoice->refreshPaymentStatus($paymentDate);
+                $due = max($invoice->outstandingTotalLaari(), 0);
 
-            return $payment;
+                if ($due <= 0) {
+                    continue;
+                }
+
+                $slice = min($remaining, $due);
+
+                $this->applyToInvoice($receipt, $invoice, $slice, $paymentDate, $method, $reference, $recordedBy);
+
+                $remaining -= $slice;
+            }
+
+            return $receipt->load('payments');
         });
+    }
+
+    /**
+     * The tenant's unsettled invoices, oldest due first — the order the money
+     * is applied in. Locked, so a concurrent single payment cannot settle one
+     * of them underneath this allocation.
+     *
+     * @param  list<int>|null  $onlyInvoiceIds
+     * @return Collection<int, Invoice>
+     */
+    private function outstandingForTenant(Tenant $tenant, ?array $onlyInvoiceIds): Collection
+    {
+        return Invoice::query()
+            ->whereHas('lease', fn ($query) => $query->where('tenant_id', $tenant->id))
+            ->whereIn('status', [
+                InvoiceStatus::Issued->value,
+                InvoiceStatus::PartlyPaid->value,
+                InvoiceStatus::Overdue->value,
+            ])
+            ->when($onlyInvoiceIds !== null, fn ($query) => $query->whereIn('id', $onlyInvoiceIds))
+            ->orderBy('due_date')
+            ->orderBy('id')          // deterministic when two fall due the same day
+            ->lockForUpdate()
+            ->get();
+    }
+
+    /**
+     * Take the next receipt number for this handover. One per handover — the
+     * number now lives on the receipt, so the rows written against each invoice
+     * all carry it.
+     */
+    private function openReceipt(int $tenantId, CarbonImmutable $paymentDate, ?User $recordedBy): Receipt
+    {
+        return Receipt::create([
+            'number' => $this->receipts->next($paymentDate->year),
+            'tenant_id' => $tenantId,
+            'recorded_by' => $recordedBy?->id,
+        ]);
+    }
+
+    /**
+     * Write one invoice's slice of a receipt: rent (principal incl. CSR) first,
+     * then fine (§5.4). The caller has already refreshed the fine and capped
+     * the slice, so this never allocates more than is owed.
+     */
+    private function applyToInvoice(
+        Receipt $receipt,
+        Invoice $invoice,
+        int $laari,
+        CarbonImmutable $paymentDate,
+        PaymentMethod $method,
+        ?string $reference,
+        ?User $recordedBy,
+    ): Payment {
+        $outstandingPrincipal = max($invoice->outstandingPrincipalLaari(), 0);
+        $outstandingFine = max($invoice->outstandingFineLaari(), 0);
+
+        if ($laari > $outstandingPrincipal + $outstandingFine) {
+            throw InvalidPaymentException::exceedsOutstanding();
+        }
+
+        [$principal, $fine] = $this->allocate($laari, $outstandingPrincipal, $outstandingFine);
+
+        $payment = Payment::create([
+            'receipt_id' => $receipt->id,
+            'invoice_id' => $invoice->id,
+            'amount_laari' => $laari,
+            'principal_allocated_laari' => $principal,
+            'fine_allocated_laari' => $fine,
+            'payment_date' => $paymentDate->toDateString(),
+            'method' => $method->value,
+            'reference' => $reference,
+            'type' => PaymentType::Payment->value,
+            'recorded_by' => $recordedBy?->id,
+        ]);
+
+        $invoice->refreshPaymentStatus($paymentDate);
+
+        return $payment;
     }
 
     /**
@@ -97,7 +243,7 @@ class PaymentRecorder
 
         return DB::transaction(function () use ($payment, $reason, $date, $recordedBy): Payment {
             $reversal = Payment::create([
-                'receipt_number' => null,
+                'receipt_id' => null,
                 'invoice_id' => $payment->invoice_id,
                 'amount_laari' => -$payment->amount_laari,
                 'principal_allocated_laari' => -$payment->principal_allocated_laari,

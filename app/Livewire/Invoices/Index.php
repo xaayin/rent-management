@@ -14,6 +14,7 @@ use App\Exceptions\InvalidApprovalException;
 use App\Exceptions\InvalidInvoiceRangeException;
 use App\Exceptions\InvalidPaymentException;
 use App\Jobs\GenerateInvoices;
+use App\Livewire\Concerns\CollectsTenantPayments;
 use App\Livewire\Concerns\InteractsWithPayments;
 use App\Models\Invoice;
 use App\Models\Lease;
@@ -33,7 +34,7 @@ use Livewire\WithPagination;
 #[Layout('components.layouts.app')]
 class Index extends Component
 {
-    use InteractsWithPayments, WithPagination;
+    use CollectsTenantPayments, InteractsWithPayments, WithPagination;
 
     public string $period = '';
 
@@ -105,6 +106,12 @@ class Index extends Component
      */
     public function closeOverlays(): void
     {
+        if ($this->collecting) {
+            $this->cancelCollect();
+
+            return;
+        }
+
         if ($this->creatingInvoice) {
             $this->closeCreateInvoice();
 
@@ -367,6 +374,7 @@ class Index extends Component
                     ->get()
                 : collect(),
             'methods' => PaymentMethod::cases(),
+            'collectPreview' => $this->buildCollectPreview(),
             'invoiceStatuses' => InvoiceStatus::cases(),
             'tenantTypes' => TenantType::cases(),
             'usageTypes' => UsageType::cases(),
