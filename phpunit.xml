@@ -29,6 +29,9 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <!-- The portal OTP bypass must never leak from a developer's local .env
+             into tests; the bypass tests enable it explicitly per-case. -->
+        <env name="PORTAL_OTP_BYPASS_CODE" value=""/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

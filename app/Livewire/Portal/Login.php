@@ -98,7 +98,17 @@ class Login extends Component
             ? $otp->tenantsFor((string) session()->get('portal_verified_mobile'))
             : collect();
 
-        return view('livewire.portal.login', ['choices' => $choices]);
+        // Surface the QA bypass on the login screen so a tester isn't left
+        // waiting for an SMS that will never come. Guarded like the bypass
+        // itself: never shown in production.
+        $bypassHint = (! app()->isProduction() && preg_match('/^\d{6}$/', (string) config('portal.otp_bypass_code')) === 1)
+            ? (string) config('portal.otp_bypass_code')
+            : null;
+
+        return view('livewire.portal.login', [
+            'choices' => $choices,
+            'bypassHint' => $bypassHint,
+        ]);
     }
 
     private function signIn(Tenant $tenant): void

@@ -312,3 +312,80 @@ it('signs out cleanly', function () {
 
     expect(Auth::guard('tenant')->check())->toBeFalse();
 });
+
+/*
+|--------------------------------------------------------------------------
+| OTP testing bypass (config/portal.php) — QA convenience, prod-guarded
+|--------------------------------------------------------------------------
+*/
+
+it('lets the bypass code sign in any tenant, with no SMS sent', function () {
+    config()->set('portal.otp_bypass_code', '123456');
+    $tenant = portalTenant('7771234');
+
+    // No code needs requesting, but the flow still routes to the code step
+    // and sends nothing.
+    Livewire::test(PortalLogin::class)
+        ->set('mobile', '7771234')
+        ->call('requestCode')
+        ->assertSet('step', 'code');
+
+    expect($this->sms->sent)->toBeEmpty();
+
+    Livewire::test(PortalLogin::class)
+        ->set('mobile', '7771234')->set('step', 'code')->set('code', '123456')
+        ->call('verify')
+        ->assertRedirect(route('portal.home'));
+
+    expect(Auth::guard('tenant')->id())->toBe($tenant->id);
+});
+
+it('still refuses a wrong code while the bypass is on', function () {
+    config()->set('portal.otp_bypass_code', '123456');
+    portalTenant('7771234');
+
+    Livewire::test(PortalLogin::class)
+        ->set('mobile', '7771234')->set('step', 'code')->set('code', '000000')
+        ->call('verify')
+        ->assertHasErrors('code');
+
+    expect(Auth::guard('tenant')->check())->toBeFalse();
+});
+
+it('still cannot enumerate tenants through the bypass', function () {
+    config()->set('portal.otp_bypass_code', '123456');
+    portalTenant('7771234');
+
+    // The bypass code against an UNKNOWN mobile logs no one in.
+    Livewire::test(PortalLogin::class)
+        ->set('mobile', '7999999')->set('step', 'code')->set('code', '123456')
+        ->call('verify')
+        ->assertHasErrors('code');
+
+    expect(Auth::guard('tenant')->check())->toBeFalse();
+});
+
+it('ignores the bypass entirely in production', function () {
+    app()->detectEnvironment(fn () => 'production');
+    config()->set('portal.otp_bypass_code', '123456');
+    portalTenant('7771234');
+
+    // The fixed code is worthless in production — real OTP only.
+    Livewire::test(PortalLogin::class)
+        ->set('mobile', '7771234')->set('step', 'code')->set('code', '123456')
+        ->call('verify')
+        ->assertHasErrors('code');
+
+    expect(Auth::guard('tenant')->check())->toBeFalse();
+});
+
+it('ignores a malformed bypass code', function () {
+    config()->set('portal.otp_bypass_code', 'not-6-digits');
+    portalTenant('7771234');
+
+    // A bad config value must not accidentally weaken anything — real OTP still
+    // works, the junk value does not.
+    Livewire::test(PortalLogin::class)->set('mobile', '7771234')->call('requestCode');
+
+    expect($this->sms->sent)->toHaveCount(1);   // fell through to a real send
+});

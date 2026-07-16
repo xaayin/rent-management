@@ -12,6 +12,7 @@ use App\Services\Sms\SmsSender;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 /**
  * SMS one-time codes for the tenant portal (T2).
@@ -51,6 +52,13 @@ class PortalOtpService
 
         if ($tenants->isEmpty()) {
             return true;   // pretend: same response as a real send
+        }
+
+        // Testing bypass: the fixed code already works in verify(), so there is
+        // nothing to generate or send. Anti-enumeration is preserved — an
+        // unknown mobile still short-circuited above.
+        if ($this->bypassCode() !== null) {
+            return true;
         }
 
         $recentCodes = DB::table('portal_otp_codes')
@@ -104,6 +112,23 @@ class PortalOtpService
     {
         $normalised = self::normalise($mobile);
 
+        // Testing bypass: the configured code signs in any tenant behind the
+        // mobile, no stored row needed. Still returns null for an unknown
+        // mobile (tenantsFor is empty), so it cannot be used to enumerate.
+        $bypass = $this->bypassCode();
+
+        if ($bypass !== null && hash_equals($bypass, $code)) {
+            $tenants = $this->tenantsFor($normalised);
+
+            if ($tenants->isNotEmpty()) {
+                Log::warning('Tenant portal OTP bypass used — this must never happen in production.', [
+                    'mobile' => $normalised,
+                ]);
+            }
+
+            return $tenants->isEmpty() ? null : $tenants;
+        }
+
         $row = DB::table('portal_otp_codes')
             ->where('mobile', $normalised)
             ->whereNull('consumed_at')
@@ -145,6 +170,24 @@ class PortalOtpService
             ->get()
             ->filter(fn (Tenant $tenant) => self::normalise((string) $tenant->mobile) === $normalisedMobile)
             ->values();
+    }
+
+    /**
+     * The testing bypass code, or null when the bypass is off.
+     *
+     * FOR TESTING/QA ONLY: this code signs in ANY tenant, so it is a master key.
+     * Two guards, not one: it is refused outright in production regardless of
+     * config, and it must be a well-formed 6-digit code. See config/portal.php.
+     */
+    private function bypassCode(): ?string
+    {
+        if (app()->isProduction()) {
+            return null;   // never, no matter what env is set
+        }
+
+        $code = (string) config('portal.otp_bypass_code', '');
+
+        return preg_match('/^\d{6}$/', $code) === 1 ? $code : null;
     }
 
     /**

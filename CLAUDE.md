@@ -261,6 +261,12 @@ php artisan invoices:refresh-fines --as-of=2026-07-10
 php artisan import:register storage/app/import/register.xlsx --dry-run
 ```
 
+**Tenant portal OTP testing bypass** (`config/portal.php`, `PORTAL_OTP_BYPASS_CODE`): set a
+6-digit code to skip the SMS and let that one code sign in ANY tenant — QA convenience only.
+Double-guarded: refused outright when `APP_ENV=production` (regardless of the value) and must be
+a valid 6-digit code; a "Testing mode" banner shows it on the portal login. `phpunit.xml` pins
+it empty so it never leaks from a local `.env` into tests (bypass tests enable it per-case).
+
 Demo sign-ins (password `password`): admin@ / supervisor@ / land@ / finance@ / auditor@
 example.com — each sees only what §6.1 allows; supervisor has the widest UI.
 

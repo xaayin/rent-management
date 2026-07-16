@@ -1,4 +1,11 @@
 <div class="mx-auto mt-6 w-full max-w-sm">
+    @if ($bypassHint)
+        <div class="mb-3 rounded-md border border-warning-bg bg-warning-bg/50 px-4 py-2.5 text-12 text-warning-fg">
+            <span class="font-bold uppercase tracking-[0.08em]">Testing mode</span> —
+            SMS is off; sign in any registered number with code <span class="font-mono font-bold">{{ $bypassHint }}</span>.
+        </div>
+    @endif
+
     <div class="rounded-md border border-line bg-surface p-6 shadow-card">
         @if ($step === 'mobile')
             <h1 class="mb-1 text-20 font-bold text-ink">Sign in</h1>
