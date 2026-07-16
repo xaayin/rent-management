@@ -133,6 +133,16 @@
                         @endif
                     </a>
                 @endcan
+                @can(\App\Enums\Permission::RecordPayments->value)
+                    @php $pendingTransfers = app(\App\Services\Portal\TransferClaimService::class)->pendingCount(); @endphp
+                    <a href="{{ route('transfers.index') }}" class="nav-item {{ request()->routeIs('transfers.*') ? 'nav-item-active' : '' }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 7l4-4M3 7l4 4M21 17H3M21 17l-4-4M21 17l-4 4"/></svg>
+                        Bank transfers
+                        @if ($pendingTransfers > 0)
+                            <span class="ml-auto rounded-full bg-danger-bg px-1.5 py-0.5 text-11 font-semibold text-danger-fg">{{ $pendingTransfers }}</span>
+                        @endif
+                    </a>
+                @endcan
                 @can('view reports')
                     <a href="{{ route('reports.arrears') }}" class="nav-item {{ request()->routeIs('reports.*') ? 'nav-item-active' : '' }}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>

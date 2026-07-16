@@ -11,7 +11,7 @@ A web system for a council to manage leases of land and premises. It replaces a 
 register ("Kuli Binthakuge Dhaftaru"). Core jobs: keep a register of properties, tenants and
 leases; generate rent invoices automatically each month; apply configurable late-payment fines;
 record payments and issue receipts; and send SMS payment reminders. Users are council staff
-(role-secured); tenants only receive notices in this release.
+(role-secured); tenants get SMS notices plus a read-only self-service portal (`/portal`).
 
 **Status: build-plan Slices 0–8 are complete** (registry, RBAC, auto-invoicing, fine engine,
 payments/receipts/statements/PDFs, SMS reminders, dashboard/reports/exports, legacy import from
@@ -125,6 +125,34 @@ See "Deferred backlog" below for what remains.
   `period_start`/`period_end`, not just the unique first-month key). Use
   `Invoice::periodLabel()` for display ("Jan – Jun 2026"). An advance invoice books entirely
   into its first month's "billed" reporting figure.
+- **Bank-transfer claims (T3)** (`App\Services\Portal\TransferClaimService`): a tenant who
+  paid off-island submits amount + date + bank reference from the portal's "Pay by transfer"
+  tab (`transfer_claims`, one pending per tenant); Finance/Supervisor confirm or reject it from
+  `/transfers` (gated on `record payments`, badge in the sidebar like Approvals). A claim is a
+  workflow record, NOT money — `confirm()` records a real bank-transfer payment through
+  `recordForTenant()` dated to the stated transfer date (so it inherits oldest-first
+  allocation, the no-credit guard, the append-only receipt AND the T1 confirmation SMS), then
+  links the claim to that receipt. Over-claim → `InvalidPaymentException` surfaces as a claim
+  error and the claim stays pending. Reject needs a reason, shown to the tenant.
+- **Tenant portal (T2)** (`/portal`, Livewire pages in `app/Livewire/Portal`, layout
+  `components.layouts.portal`): read-only self-service on its OWN auth guard — `tenant`
+  (session driver, `Tenant` model, which is Authenticatable with NO password/remember columns;
+  sign-in is an SMS one-time code via `App\Services\Portal\PortalOtpService`). OTP posture:
+  hashed codes, 5-min TTL, 5 attempts, 3 codes/mobile/hour, identical response for unknown
+  mobiles (no tenant enumeration), code MASKED in `notification_logs` (kind `portal_otp`),
+  opt-out deliberately ignored (transactional). One mobile → several tenant records is real
+  (legacy import): a chooser follows the OTP; only records behind the verified mobile may be
+  picked. Guests on `portal*` redirect to `portal.login` (bootstrap/app.php). Portal PDFs are
+  separate routes (`PortalPdfController`) gated on OWNERSHIP under the tenant guard — 404 not
+  403 for others' records; staff PDF routes stay staff-gated. The ledger is
+  `Reporting\TenantLedger`, shared with the staff statement so both always show one truth.
+- **Tenant-facing SMS (T1)**: a `payment_confirmation` text fires from `PaymentRecorder`
+  AFTER the transaction commits (never from inside it) — one per receipt, quoting the receipt
+  number and the tenant's remaining balance; `balance_statement` goes monthly to tenants in
+  arrears, idempotent per calendar month via `notification_logs`. Both live in `reminder_rules`
+  (editable/toggleable on Settings → Reminders) but are NOT due-date-driven — the reminder
+  dispatcher skips them via `ReminderKind::isDueDateDriven()`. Templates render through
+  `TemplateRenderer::renderReceipt()/renderTenant()` (separate merge-field sets).
 - **SMS**: `SmsSender` interface with `log` (default), `null` and `msgowl` drivers
   (`config/sms.php`; MsgOwl: POST `{endpoint}/messages`, `Authorization: AccessKey …`,
   recipients as bare digits, 429 retry with back-off). The channel logs EVERY attempt to
@@ -205,7 +233,7 @@ The visual source of truth is `design/ui-prototype.html` (ADS/Jira idiom) and
 - Jobs: `GenerateInvoices`, `SendPaymentReminders`. Commands: `leases:expire`,
   `invoices:generate`, `invoices:refresh-fines`, `import:register`.
 - Schedule (routes/console.php): 00:05 expire · monthly 1st 00:10 invoices · 00:15 fines ·
-  09:00 reminders.
+  09:00 reminders · monthly 1st 09:05 balance statements (`tenants:send-balance-statements`).
 - Enums in `app/Enums/` (backed, with `label()`); policies per model in `app/Policies/`;
   migrations use `bigInteger` laari money columns.
 - PDFs: `resources/views/pdf/*` (self-contained inline CSS, no Vite). Each template embeds

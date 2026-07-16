@@ -91,11 +91,18 @@ it('never reminds on a paid invoice (FR-NOT-07)', function () {
         PaymentMethod::Cash,
     );
 
+    // Paying sends its own confirmation (T1) — that is the only SMS allowed.
+    $sentAfterPayment = count($this->sms->sent);
+
     SendPaymentReminders::dispatchSync('2026-01-07');  // pre-due
     SendPaymentReminders::dispatchSync('2026-01-13');  // overdue
 
-    expect($this->sms->sent)->toBeEmpty()
-        ->and(NotificationLog::count())->toBe(0);
+    expect($this->sms->sent)->toHaveCount($sentAfterPayment)
+        ->and(NotificationLog::whereIn('kind', [
+            ReminderKind::PreDue->value,
+            ReminderKind::OnDue->value,
+            ReminderKind::Overdue->value,
+        ])->count())->toBe(0);
 });
 
 it('does not send duplicates within a cycle (FR-NOT-09)', function () {

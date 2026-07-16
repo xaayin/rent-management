@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 use App\Enums\Permission;
 use App\Http\Controllers\InvoicePdfController;
+use App\Http\Controllers\Portal\PortalPdfController;
 use App\Http\Controllers\ReceiptPdfController;
 use App\Http\Controllers\ReportExportController;
 use App\Livewire\Approvals\Index as ApprovalsIndex;
 use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Livewire\Invoices\Index as InvoicesIndex;
 use App\Livewire\Leases\Index as LeasesIndex;
+use App\Livewire\Portal\Home as PortalHome;
+use App\Livewire\Portal\Login as PortalLogin;
 use App\Livewire\Properties\Index as PropertiesIndex;
 use App\Livewire\Reports\Arrears as ArrearsReport;
 use App\Livewire\Reports\Income as IncomeReport;
@@ -18,6 +21,7 @@ use App\Livewire\Settings\Reminders as ReminderSettings;
 use App\Livewire\Settings\UserManagement;
 use App\Livewire\Tenants\Index as TenantsIndex;
 use App\Livewire\Tenants\Statement as TenantStatement;
+use App\Livewire\Transfers\Index as TransfersIndex;
 use App\Models\ApprovalRequest;
 use Illuminate\Support\Facades\Route;
 
@@ -83,6 +87,12 @@ Route::middleware(['auth'])->group(function (): void {
         ->middleware('can:viewAny,'.ApprovalRequest::class)
         ->name('approvals.index');
 
+    // The Finance queue of tenant bank-transfer claims (T3), same permission
+    // as recording a payment — confirming a claim records one.
+    Route::get('/transfers', TransfersIndex::class)
+        ->middleware('can:'.Permission::RecordPayments->value)
+        ->name('transfers.index');
+
     Route::get('/settings/users', UserManagement::class)
         ->middleware('can:'.Permission::ManageUsers->value)
         ->name('settings.users');
@@ -90,4 +100,25 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('/settings/reminders', ReminderSettings::class)
         ->middleware('can:'.Permission::ConfigureNotifications->value)
         ->name('settings.reminders');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Tenant portal (T2) — its own guard, its own front door
+|--------------------------------------------------------------------------
+| Read-only self-service for tenants, signed in by SMS one-time code. Every
+| route is throttled: this is the application's only public-facing surface.
+*/
+Route::prefix('portal')->middleware('throttle:30,1')->group(function (): void {
+    Route::get('/login', PortalLogin::class)->name('portal.login');
+
+    Route::middleware('auth:tenant')->group(function (): void {
+        Route::get('/', PortalHome::class)->name('portal.home');
+
+        Route::get('/invoices/{invoice}/pdf', [PortalPdfController::class, 'invoice'])
+            ->name('portal.invoices.pdf');
+
+        Route::get('/receipts/{receipt}/pdf', [PortalPdfController::class, 'receipt'])
+            ->name('portal.receipts.pdf');
+    });
 });

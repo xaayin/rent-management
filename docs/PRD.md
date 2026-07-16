@@ -697,7 +697,16 @@ import (§B.2 #37) · email channel INT-EML-01 · proration FR-INV-08 · configu
 FR-PRP-04 · reminder overrides FR-NOT-04 · quiet hours beyond the 09:00 send ·
 property/lease document attachments FR-PRP-05/FR-LSE-07 · data-retention routines (§14.4.41).
 
-Delivered since this appendix was first written: **multi-invoice payment collection** — one
+Delivered since this appendix was first written: **tenant bank-transfer claims** (T3 — a
+tenant paying off-island submits the transfer reference in the portal; Finance confirms it into
+a real receipt from a queue, or rejects with a reason; confirming reuses the payment path so
+the T1 SMS and oldest-first allocation come for free) · the **tenant self-service portal** (T2 —
+read-only `/portal` on a dedicated passwordless guard; SMS OTP sign-in with anti-enumeration,
+rate limits and masked logs; own leases/invoices/receipts/statement + PDF downloads gated on
+ownership; §12's "future portal" is now partially delivered) · **tenant payment-confirmation SMS + monthly
+balance statements** (T1 of the tenant-facing track: confirmation on every receipt with the
+remaining balance; monthly statement to tenants in arrears, once per calendar month) ·
+**multi-invoice payment collection** — one
 handover of money is recorded once and allocated oldest-due-first across a tenant's outstanding
 invoices, issuing a single receipt number for it (a `receipts` table now owns the number;
 `payments` keeps one append-only row per invoice). Overpayment stays rejected per §5.4, so the

@@ -13,6 +13,7 @@ use App\Models\Payment;
 use App\Models\Receipt;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Reminders\PaymentConfirmationSender;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
@@ -32,6 +33,7 @@ class PaymentRecorder
     public function __construct(
         private readonly InvoiceFineApplier $fineApplier,
         private readonly ReceiptNumberGenerator $receipts,
+        private readonly PaymentConfirmationSender $confirmations,
     ) {}
 
     public function record(
@@ -48,7 +50,7 @@ class PaymentRecorder
 
         $paymentDate = $paymentDate->startOfDay();
 
-        return DB::transaction(function () use ($invoice, $amount, $paymentDate, $method, $reference, $recordedBy): Payment {
+        $payment = DB::transaction(function () use ($invoice, $amount, $paymentDate, $method, $reference, $recordedBy): Payment {
             /** @var Invoice $invoice */
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->getKey());
 
@@ -63,6 +65,12 @@ class PaymentRecorder
 
             return $this->applyToInvoice($receipt, $invoice, $amount->laari, $paymentDate, $method, $reference, $recordedBy);
         });
+
+        // Only after commit: an SMS about money that rolled back must never
+        // leave the building. The sender itself never throws.
+        $this->confirmations->send($payment->receipt);
+
+        return $payment;
     }
 
     /**
@@ -102,7 +110,7 @@ class PaymentRecorder
 
         $paymentDate = $paymentDate->startOfDay();
 
-        return DB::transaction(function () use ($tenant, $amount, $paymentDate, $method, $reference, $recordedBy, $onlyInvoiceIds): Receipt {
+        $receipt = DB::transaction(function () use ($tenant, $amount, $paymentDate, $method, $reference, $recordedBy, $onlyInvoiceIds): Receipt {
             $invoices = $this->outstandingForTenant($tenant, $onlyInvoiceIds);
 
             // Every invoice's fine is brought up to the actual payment date
@@ -148,6 +156,10 @@ class PaymentRecorder
 
             return $receipt->load('payments');
         });
+
+        $this->confirmations->send($receipt);
+
+        return $receipt;
     }
 
     /**

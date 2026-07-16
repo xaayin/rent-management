@@ -19,6 +19,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             AuthenticateSession::class,
         ]);
+
+        // Two front doors: staff sign in at /login, tenants at /portal/login.
+        $middleware->redirectGuestsTo(
+            fn (Request $request) => $request->is('portal*') ? route('portal.login') : route('login'),
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

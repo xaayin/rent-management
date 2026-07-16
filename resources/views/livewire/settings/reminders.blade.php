@@ -27,7 +27,11 @@
                     </label>
                 </div>
 
-                @if ($rule['kind'] !== 'on_due')
+                @php $kindEnum = \App\Enums\ReminderKind::from($rule['kind']); @endphp
+
+                {{-- Days only makes sense for the due-date-driven kinds; the
+                     confirmation fires on receipt, the statement monthly. --}}
+                @if ($kindEnum->isDueDateDriven() && $rule['kind'] !== 'on_due')
                     <div class="mb-3 max-w-[200px]">
                         <label class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">
                             Days {{ $rule['kind'] === 'pre_due' ? 'before' : 'after' }} the due date
@@ -36,7 +40,21 @@
                             class="input ">
                         @error('rules.'.$id.'.days') <p class="mt-1 text-[13px] text-danger-fg">{{ $message }}</p> @enderror
                     </div>
+                @elseif ($rule['kind'] === 'payment_confirmation')
+                    <p class="mb-3 text-[13px] text-muted">Sent automatically the moment a receipt is issued.</p>
+                @elseif ($rule['kind'] === 'balance_statement')
+                    <p class="mb-3 text-[13px] text-muted">Sent on the 1st of each month to tenants with an outstanding balance.</p>
                 @endif
+
+                {{-- Each kind renders from its own merge-field set. --}}
+                @php
+                    $fields = match ($kindEnum) {
+                        \App\Enums\ReminderKind::PaymentConfirmation => \App\Services\Reminders\TemplateRenderer::RECEIPT_FIELDS,
+                        \App\Enums\ReminderKind::BalanceStatement => \App\Services\Reminders\TemplateRenderer::TENANT_FIELDS,
+                        default => \App\Services\Reminders\TemplateRenderer::FIELDS,
+                    };
+                @endphp
+                <p class="mb-2 text-[12px] text-muted">Fields: <code class="rounded bg-sunken px-1 py-0.5 text-[11px]">{{ implode(' ', $fields) }}</code></p>
 
                 <label class="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-subtle">Message template</label>
                 <textarea wire:model="rules.{{ $id }}.template" rows="3"

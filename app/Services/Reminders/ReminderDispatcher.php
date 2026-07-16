@@ -31,11 +31,19 @@ class ReminderDispatcher
         $today = $today->startOfDay();
 
         foreach (ReminderRule::query()->where('enabled', true)->get() as $rule) {
+            // Confirmation / balance-statement rules live in the same table for
+            // the settings screen, but have their own triggers — skipping them
+            // here (rather than an exhaustive match) keeps this run from
+            // crashing when a new non-date kind is added.
+            if (! $rule->kind->isDueDateDriven()) {
+                continue;
+            }
+
             $dueDate = match ($rule->kind) {
                 ReminderKind::PreDue => $today->addDays($rule->days),
                 ReminderKind::OnDue => $today,
                 ReminderKind::Overdue => $today->subDays($rule->days),
-                ReminderKind::Manual => null,
+                default => null,
             };
 
             if ($dueDate === null) {

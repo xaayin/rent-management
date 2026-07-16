@@ -35,6 +35,20 @@ class ReminderRulesSeeder extends Seeder
                 'template' => 'Dear {tenant}, invoice {invoice_number} for {property} ({period}) is overdue. '
                     .'Amount now due {amount_due} (includes fine {fine}). Please pay to {payment_account} to avoid further fines.',
             ],
+            // Not date-driven: fires the moment a receipt is issued (T1).
+            [
+                'kind' => ReminderKind::PaymentConfirmation->value,
+                'days' => 0,
+                'template' => 'Dear {tenant}, payment received — thank you. Receipt {receipt_number} · {amount_paid} '
+                    .'covering {invoice_count}. Your balance is now {tenant_balance}.',
+            ],
+            // Monthly, tenants in arrears only (tenants:send-balance-statements).
+            [
+                'kind' => ReminderKind::BalanceStatement->value,
+                'days' => 0,
+                'template' => 'Dear {tenant}, your outstanding balance with the council is {tenant_balance} '
+                    .'across {invoice_count}. Please pay to {payment_account}.',
+            ],
         ];
 
         foreach ($defaults as $rule) {
