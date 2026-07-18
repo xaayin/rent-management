@@ -697,7 +697,14 @@ import (§B.2 #37) · email channel INT-EML-01 · proration FR-INV-08 · configu
 FR-PRP-04 · reminder overrides FR-NOT-04 · quiet hours beyond the 09:00 send ·
 property/lease document attachments FR-PRP-05/FR-LSE-07 · data-retention routines (§14.4.41).
 
-Delivered since this appendix was first written: **tenant bank-transfer claims** (T3 — a
+Delivered since this appendix was first written: **configurable due-date anchoring**
+(FR-INV-01's "correct due date" is now an explicit, configurable council rule —
+`billing.due_date_anchor`: rent anchored on the 1st falls due the lease's `due_day` within the
+billed month, rent anchored mid-month falls due `due_day` of the following month, matching the
+paper ledgers; fixed `same_month`/`next_month` alternatives exist for a future rule change.
+One `DueDateCalculator` serves the generator, the advance-billing preview and a live hint in
+the lease form, and a config change only affects invoices generated from then on) ·
+**tenant bank-transfer claims** (T3 — a
 tenant paying off-island submits the transfer reference in the portal; Finance confirms it into
 a real receipt from a queue, or rejects with a reason; confirming reuses the payment path so
 the T1 SMS and oldest-first allocation come for free) · the **tenant self-service portal** (T2 —

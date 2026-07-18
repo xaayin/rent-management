@@ -58,7 +58,7 @@
                 </div>
                 <div>
                     <label class="fl">Rent-start date</label>
-                    <input type="date" wire:model="rent_start_date" class="input mt-1">
+                    <input type="date" wire:model.blur="rent_start_date" class="input mt-1">
                     @error('rent_start_date') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                 </div>
                 <div>
@@ -100,12 +100,12 @@
                     <p class="fl sm:col-span-3">Charge configuration</p>
                     <div>
                         <label class="fl">Grace period (months)</label>
-                        <input type="number" wire:model="grace_months" class="input mt-1">
+                        <input type="number" wire:model.blur="grace_months" class="input mt-1">
                         @error('grace_months') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="fl">Due day of month</label>
-                        <input type="number" wire:model="due_day" class="input mt-1">
+                        <input type="number" wire:model.blur="due_day" class="input mt-1">
                         @error('due_day') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                     </div>
                     <div>
@@ -132,6 +132,12 @@
                             <input type="text" wire:model="csr_declared_revenue" placeholder="0.00" class="input mt-1 text-right tabular-nums">
                             @error('csr_declared_revenue') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                         </div>
+                    @endif
+
+                    @if ($dueDateHint)
+                        {{-- The same calculator the generator uses — this hint
+                             promises exactly what billing will do. --}}
+                        <p class="text-12 text-muted sm:col-span-3">{{ $dueDateHint }}</p>
                     @endif
 
                     @if ($csr_type !== 'none')

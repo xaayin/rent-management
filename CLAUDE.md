@@ -125,6 +125,16 @@ See "Deferred backlog" below for what remains.
   `period_start`/`period_end`, not just the unique first-month key). Use
   `Invoice::periodLabel()` for display ("Jan – Jun 2026"). An advance invoice books entirely
   into its first month's "billed" reporting figure.
+- **Due-date anchoring**: `DueDateCalculator` is the ONE place an invoice due date is computed
+  — the generator, the advance-billing preview and the lease-form hint all call it, so a
+  preview can never promise a date billing won't honour. The rule is config
+  (`billing.due_date_anchor`, env `BILLING_DUE_DATE_ANCHOR`, `DueDateAnchor` enum): the council
+  rule in force is `start_day_based` — rent anchored ON the 1st (grace included, via
+  `effectiveRentStart()`) is due the lease's `due_day` of the billed month; anchored mid-month
+  it is due `due_day` of the NEXT month. `same_month`/`next_month` are the fixed alternatives;
+  malformed config falls back to `start_day_based`. `due_day` is clamped to the landing month's
+  length (30 → 28 Feb). Changing the config affects invoices generated from then on —
+  already-issued invoices keep their recorded due date (money never reinterprets itself).
 - **Bank-transfer claims (T3)** (`App\Services\Portal\TransferClaimService`): a tenant who
   paid off-island submits amount + date + bank reference from the portal's "Pay by transfer"
   tab (`transfer_claims`, one pending per tenant); Finance/Supervisor confirm or reject it from

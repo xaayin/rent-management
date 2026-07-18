@@ -22,6 +22,7 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\Tenant;
 use App\Services\Approvals\ApprovalService;
+use App\Services\Billing\DueDateCalculator;
 use App\Support\Money;
 use Illuminate\Contracts\View\View;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -462,6 +463,7 @@ class Index extends Component
     public function render(): View
     {
         return view('livewire.leases.index', [
+            'dueDateHint' => $this->dueDateHint(),
             'leases' => $this->leaseList(),
             'detail' => $this->leaseDetail(),
             'paying' => $this->buildPaymentPreview(),
@@ -476,6 +478,46 @@ class Index extends Component
             'tenantTypes' => TenantType::cases(),
             'usageTypes' => UsageType::cases(),
         ]);
+    }
+
+    /**
+     * A plain-language preview of when the lease's first invoice will fall due
+     * under the configured anchoring rule (config/billing.php), computed by the
+     * SAME calculator the generator uses — the hint can never promise a date
+     * billing won't honour. Null while the form is empty or mid-typing.
+     */
+    private function dueDateHint(): ?string
+    {
+        if (! $this->showForm || $this->rent_start_date === '' || $this->due_day < 1 || $this->due_day > 31) {
+            return null;
+        }
+
+        try {
+            // An unsaved throwaway lease — just enough for effectiveRentStart().
+            $preview = new Lease([
+                'rent_start_date' => $this->rent_start_date,
+                'grace_months' => max((int) $this->grace_months, 0),
+                'due_day' => (int) $this->due_day,
+            ]);
+
+            $firstBillable = $preview->effectiveRentStart();
+            $due = app(DueDateCalculator::class)->for($preview, $firstBillable->startOfMonth());
+
+            // Explain whatever the configured rule actually decided, so the
+            // wording stays honest if the council changes the anchor later.
+            $why = $due->isSameMonth($firstBillable, true)
+                ? ($firstBillable->day === 1
+                    ? 'rent starts on the 1st, so invoices fall due within their own month'
+                    : 'invoices fall due within their own month')
+                : ($firstBillable->day === 1
+                    ? 'invoices fall due the month after the one they bill'
+                    : 'rent starts mid-month, so each invoice falls due the following month');
+
+            return 'First invoice: '.$firstBillable->format('F Y')
+                .' · due '.$due->format('j F Y').' — '.$why.'.';
+        } catch (\Throwable) {
+            return null; // partial input mid-edit — no hint beats a wrong hint
+        }
     }
 
     /**

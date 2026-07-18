@@ -20,6 +20,7 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\Payment;
 use App\Services\Approvals\ApprovalService;
+use App\Services\Billing\DueDateCalculator;
 use App\Services\Billing\InvoiceGenerator;
 use App\Services\Billing\PaymentRecorder;
 use App\Support\Money;
@@ -257,7 +258,9 @@ class Index extends Component
             'csr_occurrences' => $csrOccurrences,
             'charges' => Money::fromLaari($chargesLaari),
             'total' => Money::fromLaari($rentLaari + $chargesLaari),
-            'due_date' => $from->day(min((int) $lease->due_day, $from->daysInMonth))->format('j M Y'),
+            // Through the same calculator the generator uses — a preview must
+            // never promise a date the invoice won't have.
+            'due_date' => app(DueDateCalculator::class)->for($lease, $from)->format('j M Y'),
             'error' => $error,
         ];
     }

@@ -26,7 +26,10 @@ use Illuminate\Support\Facades\DB;
  */
 class InvoiceGenerator
 {
-    public function __construct(private readonly InvoiceNumberGenerator $numbers) {}
+    public function __construct(
+        private readonly InvoiceNumberGenerator $numbers,
+        private readonly DueDateCalculator $dueDates,
+    ) {}
 
     /**
      * Generate (or return the existing) invoice for the given billing month.
@@ -124,8 +127,6 @@ class InvoiceGenerator
         return DB::transaction(function () use ($lease, $from, $months): Invoice {
             [$lines, $rent, $charges] = $this->buildLines($lease, $from, $months);
 
-            $dueDay = min((int) $lease->due_day, $from->daysInMonth);
-
             $invoice = Invoice::create([
                 'number' => $this->numbers->next($from->year),
                 'lease_id' => $lease->id,
@@ -134,7 +135,7 @@ class InvoiceGenerator
                 'period_months' => $months,
                 'period_start' => $from->toDateString(),
                 'period_end' => $from->addMonths($months - 1)->endOfMonth()->toDateString(),
-                'due_date' => $from->day($dueDay)->toDateString(),
+                'due_date' => $this->dueDates->for($lease, $from)->toDateString(),
                 'status' => InvoiceStatus::Issued->value,
                 'rent_laari' => $rent,
                 'charges_laari' => $charges,
