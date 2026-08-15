@@ -17,15 +17,19 @@ use Illuminate\Support\Facades\DB;
  * accruing fine (FR-FIN-04/05/11), fully itemised on a dedicated line item
  * whose meta holds the breakdown (FR-FIN-12).
  *
- * The rule applied is the one in force when the invoice was issued
- * (effective-dated — §5.3.22); a lease with no rule accrues no fine. The fine
+ * The rule applied is the period governing the month the invoice bills
+ * (FineRuleResolver, effective-dated — §5.3.22); a lease with no rule accrues
+ * no fine. The fine
  * accrues only while the principal (rent + charges) is outstanding; once the
  * principal is settled the fine is frozen at the value computed on that
  * payment date (§5.3.15, §5.4.25).
  */
 class InvoiceFineApplier
 {
-    public function __construct(private readonly FineCalculator $calculator) {}
+    public function __construct(
+        private readonly FineCalculator $calculator,
+        private readonly FineRuleResolver $rules,
+    ) {}
 
     /**
      * The daily refresh: status transition plus fine recomputation.
@@ -60,9 +64,7 @@ class InvoiceFineApplier
      */
     public function previewFine(Invoice $invoice, CarbonImmutable $asOf): ?FineBreakdown
     {
-        $rule = $invoice->lease->fineRuleOn(
-            CarbonImmutable::parse($invoice->created_at->toDateString()),
-        );
+        $rule = $this->rules->for($invoice);
 
         if ($rule === null) {
             return null;

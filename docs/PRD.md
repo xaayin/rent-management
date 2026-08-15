@@ -703,8 +703,11 @@ instead of running open-ended forever, so the council can fine differently in di
 periods and leave deliberate gaps where no fine accrues at all. `FineRuleScheduler` guarantees
 periods never overlap — a new period supersedes a running one, an overlap with a closed one is
 refused — and the lease screen shows the whole coverage strip, gaps included, with a live
-conflict check and a worked example priced by the real fine engine before saving. A period may
-be edited or deleted outright for as long as no invoice has been raised inside it; from the
+conflict check and a worked example priced by the real fine engine before saving. Which period governs an
+invoice is decided by the month it BILLS, not by the day the row was entered (§5.3.22
+sharpened, `billing.fine_rule_anchor`) — councils back-enter historic paperwork, and anchoring
+on the creation date fined a December 2025 invoice under a rule that only began in May 2026.
+A period may be edited or deleted outright for as long as no invoice has been raised inside it; from the
 first covered invoice onward it locks and must be ended rather than rewritten, because those
 invoices' fines are recomputed from it nightly. Which period
 fined which invoice is recorded on the invoice and listed back as history, FR-FIN-12) ·

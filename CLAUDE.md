@@ -100,7 +100,15 @@ See "Deferred backlog" below for what remains.
   `waive_fine` is the third A-cell — add the `ApprovalAction` case + an `execute()` branch when
   fine waivers land.
 - **Fine engine**: `FineCalculator` returns a `FineBreakdown` DTO (full itemisation, FR-FIN-12).
-  The rule applied is the one whose **period contains the invoice's issue date**. The fine
+  The rule applied is the one whose **period contains the invoice's anchor date** —
+  `FineRuleResolver` is the ONE place that resolves it, and the anchor is config
+  (`billing.fine_rule_anchor`, env `BILLING_FINE_RULE_ANCHOR`, `FineRuleAnchor` enum). Default
+  and council rule is `period_start`: **the month the invoice bills, NOT when the row was
+  created** — historic paperwork is routinely back-entered, so `created_at` would fine a
+  Dec 2025 invoice under today's rule. `due_date`/`issue_date` are the alternatives. An advance
+  invoice anchors on the first month it covers, so one document is never fined under two rules.
+  The scheduler's edit/delete guard reads the SAME anchor (`FineRuleAnchor::column()`), so what
+  a period locks and what it charges can never disagree. The fine
   accrues daily while principal is outstanding and **freezes** once principal is settled. A
   lease with **no fine rule accrues no fine** (no system-wide default until the council states
   one).

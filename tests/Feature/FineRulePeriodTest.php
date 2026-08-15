@@ -479,3 +479,52 @@ it('edits a period from the schedule screen and locks one that has invoices', fu
 
     expect($covering->refresh()->exists)->toBeTrue();
 });
+
+/*
+ | Which period governs an invoice is decided by the MONTH IT BILLS, not by the
+ | day someone happened to type it in. Back-entering a December 2025 invoice in
+ | August 2026 must still fine it under the rule the council had in December.
+ */
+
+it('fines a back-entered invoice under the period of the month it bills', function () {
+    $lease = Lease::factory()->active()->flat(50_000)->create([
+        'start_date' => '2024-01-15',
+        'rent_start_date' => '2024-01-15',   // mid-month: Dec 2025 falls due 10 Jan 2026
+        'expiry_date' => '2036-01-01',
+        'due_day' => 10,
+    ]);
+
+    scheduleRule($lease, [
+        'method' => 'percent_per_day', 'base' => 'rent', 'percent_daily_bps' => 50,
+        'flat_daily_laari' => null,
+        'effective_from' => '2024-01-01', 'effective_to' => '2026-04-30',
+    ]);
+    scheduleRule($lease, [
+        'method' => 'tiered_monthly', 'base' => 'rent', 'flat_daily_laari' => null,
+        'first_month_laari' => 10_000, 'subsequent_month_laari' => 5_000,
+        'effective_from' => '2026-05-01', 'effective_to' => null,
+    ]);
+
+    // Billed for Dec 2025, due 10 Jan 2026 — but only entered in Aug 2026.
+    $invoice = invoiceIssuedOn($lease, '2025-12-01', '2026-08-15');
+
+    artisan('invoices:refresh-fines', ['--as-of' => '2026-08-15']);
+    $invoice->refresh();
+
+    // 217 days late × 0.5% of MVR 500 (250 laari/day) — the December rule,
+    // NOT the tiered one that only began in May 2026.
+    expect($invoice->fine_laari)->toBe(54_250)
+        ->and($invoice->governingFineRule()->percent_daily_bps)->toBe(50);
+});
+
+it('anchors an advance invoice on the first month it covers', function () {
+    $lease = periodLease();
+    scheduleRule($lease, ['effective_from' => '2026-01-01', 'effective_to' => '2026-03-31', 'flat_daily_laari' => 100]);
+    scheduleRule($lease, ['effective_from' => '2026-04-01', 'effective_to' => null, 'flat_daily_laari' => 5_000]);
+
+    // Jan–Jun in one invoice: governed by January's rule, start to finish.
+    $invoice = app(InvoiceGenerator::class)
+        ->generateRange($lease, CarbonImmutable::parse('2026-01-01'), 6);
+
+    expect($invoice->governingFineRule()->flat_daily_laari)->toBe(100);
+});

@@ -98,12 +98,12 @@ it('keeps each lease\'s rule independent — changing one does not affect others
     expect($percent->refresh()->fine_laari)->toBe(13_500)
         ->and($tiered->refresh()->fine_laari)->toBe(15_000);
 
-    // Switching the first lease to flat MVR 1.00/day (effective before this
-    // invoice was issued) re-fines only that lease — the other is untouched
-    // (acceptance §13.1.31).
+    // Switching the first lease to flat MVR 1.00/day (effective before the
+    // month these invoices bill) re-fines only that lease — the other is
+    // untouched (acceptance §13.1.31).
     FineRule::factory()->flatPerDay(100)->create([
         'lease_id' => $percent->lease_id,
-        'effective_from' => '2026-02-01',
+        'effective_from' => '2025-12-01',
     ]);
 
     artisan('invoices:refresh-fines', ['--as-of' => '2026-03-05']);
@@ -112,11 +112,11 @@ it('keeps each lease\'s rule independent — changing one does not affect others
         ->and($tiered->refresh()->fine_laari)->toBe(15_000);
 });
 
-it('applies the rule that was in force when the invoice was issued (FR-FIN-09)', function () {
+it('applies the rule in force for the month the invoice bills (FR-FIN-09)', function () {
     $invoice = overdueInvoiceFor(FineRule::factory()->flatPerDay(100)->create(['effective_from' => '2020-01-01']));
 
-    // Pin the issue date, then add a later, much harsher rule.
-    $invoice->forceFill(['created_at' => '2026-01-01 00:00:00'])->saveQuietly();
+    // Entered long after the fact, then a later, much harsher rule is added.
+    $invoice->forceFill(['created_at' => '2026-08-15 00:00:00'])->saveQuietly();
 
     FineRule::factory()->flatPerDay(1_000)->create([
         'lease_id' => $invoice->lease_id,

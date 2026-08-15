@@ -50,4 +50,24 @@ return [
 
     'due_date_anchor' => env('BILLING_DUE_DATE_ANCHOR', 'start_day_based'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Fine-rule anchor
+    |--------------------------------------------------------------------------
+    |
+    | Which date on an invoice decides which fine PERIOD governs it:
+    |
+    |   period_start  the month the invoice bills (council rule, default) —
+    |                 back-entered paperwork is fined under the rule that was
+    |                 in force for the month it covers
+    |   due_date      the day payment fell due
+    |   issue_date    the day the row was created (only safe if nothing is ever
+    |                 back-entered)
+    |
+    | Changing this changes which rule governs EXISTING unpaid invoices at the
+    | next fine refresh, because an accruing fine is recomputed daily.
+    |
+    */
+
+    'fine_rule_anchor' => env('BILLING_FINE_RULE_ANCHOR', 'period_start'),
 ];

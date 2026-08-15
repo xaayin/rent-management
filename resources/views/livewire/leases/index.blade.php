@@ -628,7 +628,7 @@
                         @if ($segment['type'] === 'gap')
                             <li class="flex items-center gap-3 rounded border border-dashed border-line px-3.5 py-2.5">
                                 <span class="loz loz-neutral shrink-0">No fine</span>
-                                <span class="min-w-0 flex-1 text-13 text-muted">{{ $segment['label'] }} — invoices issued in this window accrue no fine.</span>
+                                <span class="min-w-0 flex-1 text-13 text-muted">{{ $segment['label'] }} — invoices billing these months accrue no fine.</span>
                             </li>
                         @else
                             <li class="rounded border border-line bg-surface px-3.5 py-3 shadow-xs {{ $segment['status'] === 'active' ? 'border-l-[3px] border-l-brand-500' : '' }}">
@@ -858,7 +858,7 @@
             </div>
 
             <div class="flex items-center justify-between gap-2 rounded-b-xl border-t border-line-2 bg-sunken px-5 py-3.5">
-                <p class="text-12 text-muted">A period governs every invoice <em>issued</em> within it.</p>
+                <p class="text-12 text-muted">A period governs every invoice for the <em>months it bills</em>, whenever it was entered.</p>
                 <button wire:click="closeFineSchedule" class="btn-subtle">Done</button>
             </div>
         </x-modal>

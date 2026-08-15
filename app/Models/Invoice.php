@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\InvoiceStatus;
+use App\Services\Billing\FineRuleResolver;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
@@ -81,15 +82,13 @@ class Invoice extends Model
     }
 
     /**
-     * The period governing this invoice. Falls back to resolving it from the
-     * issue date for invoices last fined before the column existed, and for
-     * those not yet late enough to have been fined at all.
+     * The period governing this invoice — resolved live rather than read from
+     * fine_rule_id, so the answer is right even before the invoice has ever
+     * been fined (an invoice not yet past due carries no fine at all).
      */
     public function governingFineRule(): ?FineRule
     {
-        return $this->fineRule ?? $this->lease?->fineRuleOn(
-            CarbonImmutable::parse($this->created_at->toDateString()),
-        );
+        return app(FineRuleResolver::class)->for($this);
     }
 
     /** @return HasMany<InvoiceLineItem, $this> */

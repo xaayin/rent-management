@@ -157,9 +157,9 @@ class FineRuleScheduler
 
     /**
      * How many invoices this period is responsible for: anything it has already
-     * fined, plus anything issued inside its effective window that it has simply
-     * not fined YET (an invoice not past its due date has no fine computed, but
-     * this period is what will compute it).
+     * fined, plus anything whose billing month falls inside its effective window
+     * that it has simply not fined YET (an invoice not past its due date has no
+     * fine computed, but this period is what will compute it).
      *
      * Zero means the period can be edited or deleted without changing a single
      * figure anywhere.
@@ -173,11 +173,15 @@ class FineRuleScheduler
             ->where(function ($query) use ($rule, $window) {
                 $query
                     ->where('fine_rule_id', $rule->id)
-                    ->orWhere(function ($issued) use ($window) {
-                        $issued->whereDate('created_at', '>=', $window['from']->toDateString());
+                    ->orWhere(function ($covered) use ($window) {
+                        // The same anchor the applier fines by, so "what this
+                        // period locks" and "what it charges" cannot disagree.
+                        $column = app(FineRuleResolver::class)->anchor()->column();
+
+                        $covered->whereDate($column, '>=', $window['from']->toDateString());
 
                         if ($window['to'] !== null) {
-                            $issued->whereDate('created_at', '<=', $window['to']->toDateString());
+                            $covered->whereDate($column, '<=', $window['to']->toDateString());
                         }
                     });
             })
