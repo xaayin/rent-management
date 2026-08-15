@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Billing;
 
 use App\Enums\FineMethod;
+use App\Models\FineRule;
 use App\Support\Money;
 
 /**
@@ -31,7 +32,37 @@ final class FineBreakdown
         public readonly ?int $capLaari,
         public readonly bool $capped,
         public readonly int $totalLaari,
+        // Which fine period produced this figure (FR-FIN-12 auditability).
+        public readonly ?int $ruleId = null,
+        public readonly ?string $ruleSummary = null,
+        public readonly ?string $rulePeriod = null,
     ) {}
+
+    /**
+     * Stamp the period that produced this breakdown. Immutable, so it returns a
+     * copy — the calculator builds the maths, then names its source.
+     */
+    public function withRule(FineRule $rule): self
+    {
+        return new self(
+            method: $this->method,
+            baseLaari: $this->baseLaari,
+            dueDate: $this->dueDate,
+            allowanceDays: $this->allowanceDays,
+            asOf: $this->asOf,
+            lateDays: $this->lateDays,
+            overdueMonths: $this->overdueMonths,
+            dailyLaari: $this->dailyLaari,
+            percentBps: $this->percentBps,
+            tierLines: $this->tierLines,
+            capLaari: $this->capLaari,
+            capped: $this->capped,
+            totalLaari: $this->totalLaari,
+            ruleId: $rule->id,
+            ruleSummary: $rule->summary(),
+            rulePeriod: $rule->periodLabel(),
+        );
+    }
 
     public static function none(FineMethod $method, int $baseLaari, string $dueDate, int $allowanceDays, string $asOf): self
     {
@@ -116,6 +147,9 @@ final class FineBreakdown
             'cap_laari' => $this->capLaari,
             'capped' => $this->capped,
             'total_laari' => $this->totalLaari,
+            'fine_rule_id' => $this->ruleId,
+            'rule_summary' => $this->ruleSummary,
+            'rule_period' => $this->rulePeriod,
         ];
     }
 }

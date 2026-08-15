@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\InvoiceStatus;
 use App\Enums\PaymentMethod;
 use App\Livewire\Invoices\Index as InvoicesIndex;
 use App\Livewire\Leases\Index as LeasesIndex;
@@ -29,6 +30,34 @@ function billingUser(string $role): User
     $user->assignRole($role);
 
     return $user;
+}
+
+/** A flat MVR 500/month lease invoiced for January 2026, nothing paid. */
+function unpaidInvoice(): Invoice
+{
+    $lease = Lease::factory()->active()->flat(50_000)->create([
+        'start_date' => '2026-01-01',
+        'rent_start_date' => '2026-01-01',
+        'expiry_date' => '2036-01-01',
+        'due_day' => 10,
+    ]);
+
+    return app(InvoiceGenerator::class)->generate($lease, CarbonImmutable::parse('2026-01-01'));
+}
+
+/** The same invoice, paid in full and therefore Paid. */
+function settledInvoice(): Invoice
+{
+    $invoice = unpaidInvoice();
+
+    app(PaymentRecorder::class)->record(
+        $invoice,
+        Money::fromLaari($invoice->total_laari),
+        CarbonImmutable::parse('2026-01-08'),
+        PaymentMethod::Cash,
+    );
+
+    return $invoice->refresh();
 }
 
 it('lets a finance officer view invoices but blocks a land officer', function () {
@@ -131,4 +160,50 @@ it('persists grace and CSR configuration from the lease form', function () {
         ->and($lease->csr_type->value)->toBe('fixed_annual')
         ->and($lease->csr_amount_laari)->toBe(900_000)
         ->and($lease->csr_month)->toBe(1);
+});
+
+/*
+ | Reversal must stay reachable for the whole life of an invoice. A settled
+ | invoice is exactly when a payment needs undoing — the cheque that paid it
+ | bounced — so the payments panel opens on a Paid invoice too, with the
+ | record-a-payment form stood down because there is nothing left to pay.
+ */
+
+it('opens the payments panel on a fully paid invoice so the payment can be reversed', function () {
+    $invoice = settledInvoice();
+    $payment = $invoice->payments()->first();
+
+    expect($invoice->refresh()->status)->toBe(InvoiceStatus::Paid);
+
+    $supervisor = User::factory()->create();
+    $supervisor->assignRole('supervisor');
+    actingAs($supervisor);
+
+    Livewire::test(InvoicesIndex::class)
+        ->call('startPayment', $invoice->id)
+        ->assertSet('payingInvoiceId', $invoice->id)
+        ->assertSee('Receipt '.$payment->receipt_number)
+        ->assertSee('Reverse')                       // a labelled control, not a bare icon
+        ->assertSee('This invoice is settled')
+        ->assertDontSee('Amount received (MVR)')     // nothing left to pay
+        ->call('startReverse', $payment->id)
+        ->set('reversal_reason', 'Cheque returned unpaid by the bank.')
+        ->call('confirmReverse')
+        ->assertHasNoErrors();
+
+    expect($payment->refresh()->isReversed())->toBeTrue()
+        ->and($invoice->refresh()->status)->not->toBe(InvoiceStatus::Paid);
+});
+
+it('still offers the payment form on an invoice that is not settled', function () {
+    $invoice = unpaidInvoice();
+
+    $supervisor = User::factory()->create();
+    $supervisor->assignRole('supervisor');
+    actingAs($supervisor);
+
+    Livewire::test(InvoicesIndex::class)
+        ->call('startPayment', $invoice->id)
+        ->assertSee('Amount received (MVR)')
+        ->assertDontSee('This invoice is settled');
 });

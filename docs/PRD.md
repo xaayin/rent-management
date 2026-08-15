@@ -697,7 +697,18 @@ import (§B.2 #37) · email channel INT-EML-01 · proration FR-INV-08 · configu
 FR-PRP-04 · reminder overrides FR-NOT-04 · quiet hours beyond the 09:00 send ·
 property/lease document attachments FR-PRP-05/FR-LSE-07 · data-retention routines (§14.4.41).
 
-Delivered since this appendix was first written: **configurable due-date anchoring**
+Delivered since this appendix was first written: **fine rules as scheduled periods**
+(FR-FIN-09 sharpened: a rule now owns an explicit `[effective_from, effective_to]` window
+instead of running open-ended forever, so the council can fine differently in different
+periods and leave deliberate gaps where no fine accrues at all. `FineRuleScheduler` guarantees
+periods never overlap — a new period supersedes a running one, an overlap with a closed one is
+refused — and the lease screen shows the whole coverage strip, gaps included, with a live
+conflict check and a worked example priced by the real fine engine before saving. A period may
+be edited or deleted outright for as long as no invoice has been raised inside it; from the
+first covered invoice onward it locks and must be ended rather than rewritten, because those
+invoices' fines are recomputed from it nightly. Which period
+fined which invoice is recorded on the invoice and listed back as history, FR-FIN-12) ·
+**configurable due-date anchoring**
 (FR-INV-01's "correct due date" is now an explicit, configurable council rule —
 `billing.due_date_anchor`: rent anchored on the 1st falls due the lease's `due_day` within the
 billed month, rent anchored mid-month falls due `due_day` of the following month, matching the

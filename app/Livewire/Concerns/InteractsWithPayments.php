@@ -166,6 +166,9 @@ trait InteractsWithPayments
             'outstanding_total' => Money::fromLaari($outstandingPrincipal + $outstandingFine),
             'allocation' => $allocation,
             'other_outstanding' => $this->otherOutstandingFor($invoice),
+            // A settled invoice still opens this panel — reversal has to stay
+            // reachable — but with nothing left to pay, the form stands down.
+            'settled' => $invoice->status === InvoiceStatus::Paid,
         ];
     }
 

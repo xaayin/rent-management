@@ -134,13 +134,22 @@ class Lease extends Model
     }
 
     /**
-     * The fine rule in force on a given date (FR-FIN-09): the latest rule whose
-     * effective_from is on or before it. Null means no fine accrues.
+     * The fine rule in force on a given date (FR-FIN-09): the rule whose period
+     * contains it, both ends inclusive. Null — a date before the first period,
+     * or in a gap between periods — means no fine accrues.
+     *
+     * Periods never overlap when written through FineRuleScheduler, so at most
+     * one row matches. The ordering is the tiebreak for rows written outside it
+     * (the importer, seeders and pre-period data all leave the end open): among
+     * open-ended rules the latest still supersedes, as it always did.
      */
     public function fineRuleOn(CarbonImmutable $date): ?FineRule
     {
         return $this->fineRules()
             ->whereDate('effective_from', '<=', $date->toDateString())
+            ->where(fn ($q) => $q
+                ->whereNull('effective_to')
+                ->orWhereDate('effective_to', '>=', $date->toDateString()))
             ->orderByDesc('effective_from')
             ->orderByDesc('id')
             ->first();

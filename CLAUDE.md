@@ -100,10 +100,32 @@ See "Deferred backlog" below for what remains.
   `waive_fine` is the third A-cell — add the `ApprovalAction` case + an `execute()` branch when
   fine waivers land.
 - **Fine engine**: `FineCalculator` returns a `FineBreakdown` DTO (full itemisation, FR-FIN-12).
-  Rules are effective-dated append-only rows; the rule applied is the one in force at the
-  invoice's **issue date**. The fine accrues daily while principal is outstanding and
-  **freezes** once principal is settled. A lease with **no fine rule accrues no fine** (no
-  system-wide default until the council states one).
+  The rule applied is the one whose **period contains the invoice's issue date**. The fine
+  accrues daily while principal is outstanding and **freezes** once principal is settled. A
+  lease with **no fine rule accrues no fine** (no system-wide default until the council states
+  one).
+- **Fine periods**: a `FineRule` owns a window `[effective_from, effective_to]`, both ends
+  inclusive; a null end means "and onwards". `FineRuleScheduler` is the ONE place periods are
+  written and holds the invariant that **periods on a lease never overlap** — so "which rule
+  fines this invoice" always has exactly one answer. A **gap** between periods is legitimate
+  and means no fine accrues (the council's fine-holiday case). Adding a period that starts
+  inside an open-ended predecessor **supersedes** it (closes it the day before); overlapping a
+  *closed* period is refused, naming the conflict.
+  **Edit/delete are gated on invoices, NOT on whether the period has started**:
+  `dependentInvoiceCount()` counts invoices already fined by it (`fine_rule_id`) *plus* any
+  raised inside its window that it has simply not fined yet (an invoice not past due has no
+  fine computed, but this period is what will compute it) — so a period that ran over a quiet
+  stretch is freely editable, while one covering a single invoice locks. Dependency uses the
+  **effective** window from `effectiveWindow()` (clamped by the next period's start), so a
+  legacy open-ended row is not blamed for invoices a later row took over. Once locked, the only
+  mutation is closing an open end (`close()`); `update()` and `remove()` throw with the count. `invoices.fine_rule_id` records which
+  period produced the current fine (rewritten on every refresh — a record of what happened, not
+  a pin), and the same identity rides in the fine line item's `meta`. **Legacy rows all left
+  the end open**, so a lease can carry several; resolution has always been "latest start wins"
+  and `timeline()` renders them clamped to match, rather than claiming coverage that never
+  applied. The manager lives in a wide modal on `/leases` (coverage strip incl. gaps → add-a-
+  period form with presets, live conflict inspection via `inspect()` and a worked example
+  priced by the real calculator → "Applied to" history).
 - **Payments**: allocation is rent(principal incl. CSR)-first then fine, via
   `config/billing.php` (`fine_first` also implemented). The fine is recomputed **as of the
   actual payment date** before allocating. Overpayments are rejected (no credit balances).

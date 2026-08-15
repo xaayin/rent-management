@@ -37,14 +37,14 @@ class FineCalculator
                 $dueDate->toDateString(),
                 $allowanceDays,
                 $asOf->toDateString(),
-            );
+            )->withRule($rule);
         }
 
-        return match ($rule->method) {
+        return (match ($rule->method) {
             FineMethod::FlatPerDay => $this->flatPerDay($rule, $base, $dueDate, $asOf, $lateDays),
             FineMethod::PercentPerDay => $this->percentPerDay($rule, $base, $dueDate, $asOf, $lateDays),
             FineMethod::TieredMonthly => $this->tieredMonthly($rule, $base, $dueDate, $effectiveDue, $asOf, $lateDays),
-        };
+        })->withRule($rule);
     }
 
     /**

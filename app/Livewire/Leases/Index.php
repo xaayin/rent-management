@@ -8,6 +8,7 @@ use App\Enums\ApprovalAction;
 use App\Enums\CsrType;
 use App\Enums\FineBase;
 use App\Enums\FineMethod;
+use App\Enums\InvoiceLineType;
 use App\Enums\InvoiceStatus;
 use App\Enums\LeaseStatus;
 use App\Enums\PaymentMethod;
@@ -15,24 +16,31 @@ use App\Enums\RentBasis;
 use App\Enums\TenantType;
 use App\Enums\UsageType;
 use App\Exceptions\InvalidApprovalException;
+use App\Exceptions\InvalidFineRuleException;
 use App\Livewire\Concerns\InteractsWithPayments;
 use App\Models\ApprovalRequest;
 use App\Models\FineRule;
+use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\Tenant;
 use App\Services\Approvals\ApprovalService;
 use App\Services\Billing\DueDateCalculator;
+use App\Services\Billing\FineCalculator;
+use App\Services\Billing\FineRuleScheduler;
 use App\Support\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Spatie\Activitylog\Models\Activity;
+use Throwable;
 
 #[Layout('components.layouts.app')]
 class Index extends Component
@@ -131,6 +139,17 @@ class Index extends Component
 
     public string $fine_effective_from = '';
 
+    public string $fine_effective_to = '';
+
+    /** Open end — the period runs until something supersedes it. */
+    public bool $fine_ongoing = true;
+
+    /** Whether the "add a period" form is expanded inside the schedule manager. */
+    public bool $showFineForm = false;
+
+    /** The period being edited in place; null means the form adds a new one. */
+    public ?int $editingFineRuleId = null;
+
     public function mount(): void
     {
         $this->authorize('viewAny', Lease::class);
@@ -184,6 +203,12 @@ class Index extends Component
      */
     public function closeOverlays(): void
     {
+        if ($this->fineRuleLeaseId !== null) {
+            $this->closeFineSchedule();
+
+            return;
+        }
+
         if ($this->payingInvoiceId !== null) {
             $this->resetPaymentForm();
 
@@ -393,7 +418,10 @@ class Index extends Component
 
         $this->resetFineForm();
         $this->fineRuleLeaseId = $lease->id;
+        $this->showFineForm = true;
         $this->fine_effective_from = today()->toDateString();
+        $this->fine_effective_to = '';
+        $this->fine_ongoing = true;
 
         // Prefill from the rule currently in force so edits start from reality.
         if (($current = $lease->currentFineRule()) !== null) {
@@ -430,12 +458,15 @@ class Index extends Component
             'fine_subsequent_month' => [Rule::requiredIf($isTiered), 'nullable', 'regex:/^\d+(\.\d{1,2})?$/'],
             'fine_cap' => ['nullable', 'regex:/^\d+(\.\d{1,2})?$/'],
             'fine_effective_from' => ['required', 'date'],
+            'fine_effective_to' => [
+                Rule::requiredIf(! $this->fine_ongoing), 'nullable', 'date', 'after_or_equal:fine_effective_from',
+            ],
         ]);
 
-        // Rules are append-only: each change is a new effective-dated row
-        // (FR-FIN-09), so historic invoices keep the rule they were fined under.
-        FineRule::create([
-            'lease_id' => $lease->id,
+        // Each change is a new effective-dated PERIOD (FR-FIN-09), so historic
+        // invoices keep the rule they were fined under. The scheduler owns the
+        // no-overlap invariant and supersedes an open-ended predecessor.
+        $attributes = [
             'method' => $validated['fine_method'],
             'base' => $validated['fine_base'],
             'allowance_days' => $validated['fine_allowance_days'],
@@ -446,10 +477,146 @@ class Index extends Component
             'cap_laari' => $validated['fine_cap'] !== null && $validated['fine_cap'] !== ''
                 ? Money::fromRufiyaa($validated['fine_cap'])->laari : null,
             'effective_from' => $validated['fine_effective_from'],
-        ]);
+            'effective_to' => $this->fine_ongoing ? null : ($validated['fine_effective_to'] ?: null),
+        ];
 
+        $scheduler = app(FineRuleScheduler::class);
+
+        try {
+            if ($this->editingFineRuleId !== null) {
+                $scheduler->update(FineRule::findOrFail($this->editingFineRuleId), $attributes);
+            } else {
+                $scheduler->schedule($lease, $attributes);
+            }
+        } catch (InvalidFineRuleException $e) {
+            // The dates are what the user must change, so the message lands there.
+            $this->addError('fine_effective_from', $e->getMessage());
+
+            return;
+        }
+
+        $edited = $this->editingFineRuleId !== null;
+        $this->cancelFineForm();
+        session()->flash('status', $edited ? 'Fine period updated.' : 'Fine period saved.');
+    }
+
+    /**
+     * End a running period today without replacing it — fines stop accruing on
+     * invoices issued from tomorrow (FR-FIN-09).
+     */
+    public function endFinePeriod(int $ruleId): void
+    {
+        $rule = FineRule::findOrFail($ruleId);
+        $this->authorize('configureFineRule', $rule->lease);
+
+        try {
+            app(FineRuleScheduler::class)->close($rule, CarbonImmutable::parse(today()->toDateString()));
+        } catch (InvalidFineRuleException $e) {
+            session()->flash('status', $e->getMessage());
+
+            return;
+        }
+
+        session()->flash('status', 'Fine period ended '.today()->format('j M Y').'.');
+    }
+
+    /** Delete a period that never started and never fined anything. */
+    public function removeFinePeriod(int $ruleId): void
+    {
+        $rule = FineRule::findOrFail($ruleId);
+        $this->authorize('configureFineRule', $rule->lease);
+
+        try {
+            app(FineRuleScheduler::class)->remove($rule);
+        } catch (InvalidFineRuleException $e) {
+            session()->flash('status', $e->getMessage());
+
+            return;
+        }
+
+        session()->flash('status', 'Scheduled fine period removed.');
+    }
+
+    /**
+     * Edit a period in place. Only offered while nothing was invoiced under it;
+     * the scheduler re-checks that on save, so the button is a convenience and
+     * never the guarantee.
+     */
+    public function editFinePeriod(int $ruleId): void
+    {
+        $rule = FineRule::findOrFail($ruleId);
+        $this->authorize('configureFineRule', $rule->lease);
+
+        $this->resetValidation();
+        $this->editingFineRuleId = $rule->id;
+        $this->showFineForm = true;
+
+        $this->fine_method = $rule->method->value;
+        $this->fine_base = $rule->base->value;
+        $this->fine_allowance_days = $rule->allowance_days;
+        $this->fine_flat_amount = $rule->flat_daily_laari !== null
+            ? Money::fromLaari($rule->flat_daily_laari)->toRufiyaa() : '';
+        $this->fine_percent = $rule->percent_daily_bps !== null
+            ? rtrim(rtrim(number_format($rule->percent_daily_bps / 100, 2, '.', ''), '0'), '.') : '';
+        $this->fine_first_month = Money::fromLaari($rule->firstMonthLaari())->toRufiyaa();
+        $this->fine_subsequent_month = Money::fromLaari($rule->subsequentMonthLaari())->toRufiyaa();
+        $this->fine_cap = $rule->cap_laari !== null ? Money::fromLaari($rule->cap_laari)->toRufiyaa() : '';
+        $this->fine_effective_from = $rule->effective_from->toDateString();
+        $this->fine_effective_to = $rule->effective_to?->toDateString() ?? '';
+        $this->fine_ongoing = $rule->isOpenEnded();
+    }
+
+    /** Leave edit mode without closing the whole schedule. */
+    public function cancelFineForm(): void
+    {
+        $this->reset(
+            'showFineForm', 'editingFineRuleId', 'fine_method', 'fine_base',
+            'fine_allowance_days', 'fine_flat_amount', 'fine_percent',
+            'fine_first_month', 'fine_subsequent_month', 'fine_cap',
+            'fine_effective_from', 'fine_effective_to', 'fine_ongoing',
+        );
+        $this->resetValidation();
+    }
+
+    public function closeFineSchedule(): void
+    {
         $this->resetFineForm();
-        session()->flash('status', 'Fine rule saved.');
+        $this->showFineForm = false;
+    }
+
+    /** Typing an end date means the period is closed — keep the toggle honest. */
+    public function updatedFineEffectiveTo(string $value): void
+    {
+        $this->fine_ongoing = $value === '';
+    }
+
+    /** Ticking "no end date" clears whatever end date was there. */
+    public function updatedFineOngoing(bool $value): void
+    {
+        if ($value) {
+            $this->fine_effective_to = '';
+        }
+    }
+
+    /**
+     * Quick period shapes, so the common cases are one click rather than two
+     * date pickers: from today on, this calendar year, or the rest of the term.
+     */
+    public function applyFinePreset(string $preset): void
+    {
+        $lease = Lease::find($this->fineRuleLeaseId);
+        $today = CarbonImmutable::parse(today()->toDateString());
+
+        [$from, $to] = match ($preset) {
+            'this_year' => [$today->startOfYear(), $today->endOfYear()],
+            'rest_of_term' => [$today, $lease?->expiry_date
+                ? CarbonImmutable::parse($lease->expiry_date->toDateString()) : null],
+            default => [$today, null],
+        };
+
+        $this->fine_effective_from = $from->toDateString();
+        $this->fine_effective_to = $to?->toDateString() ?? '';
+        $this->fine_ongoing = $to === null;
     }
 
     public function cancel(): void
@@ -464,6 +631,7 @@ class Index extends Component
     {
         return view('livewire.leases.index', [
             'dueDateHint' => $this->dueDateHint(),
+            'fineSchedule' => $this->fineSchedule(),
             'leases' => $this->leaseList(),
             'detail' => $this->leaseDetail(),
             'paying' => $this->buildPaymentPreview(),
@@ -478,6 +646,146 @@ class Index extends Component
             'tenantTypes' => TenantType::cases(),
             'usageTypes' => UsageType::cases(),
         ]);
+    }
+
+    /**
+     * Everything the fine-schedule manager renders for the open lease: the
+     * timeline of periods and no-fine gaps, what the period being typed would
+     * do, a worked example on this lease's own rent, and the record of which
+     * period actually fined which invoice.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function fineSchedule(): ?array
+    {
+        $lease = $this->fineRuleLeaseId !== null
+            ? Lease::with(['property', 'tenant'])->find($this->fineRuleLeaseId)
+            : null;
+
+        if ($lease === null) {
+            return null;
+        }
+
+        $scheduler = app(FineRuleScheduler::class);
+        $draft = $this->draftFineRule();
+
+        return [
+            'lease' => $lease,
+            'timeline' => $scheduler->timeline($lease),
+            'inspection' => $this->showFineForm && $this->fine_effective_from !== ''
+                ? $scheduler->inspect(
+                    $lease,
+                    CarbonImmutable::parse($this->fine_effective_from),
+                    $this->fine_ongoing || $this->fine_effective_to === ''
+                        ? null : CarbonImmutable::parse($this->fine_effective_to),
+                    $this->editingFineRuleId,
+                )
+                : null,
+            'example' => $draft !== null ? $this->finePreviewExample($lease, $draft) : null,
+            'history' => $this->fineHistory($lease),
+        ];
+    }
+
+    /**
+     * The period being typed, as an unsaved FineRule — enough for the calculator
+     * to price it. Null while the form is closed or the amounts are incomplete.
+     */
+    private function draftFineRule(): ?FineRule
+    {
+        if (! $this->showFineForm) {
+            return null;
+        }
+
+        $isFlat = $this->fine_method === FineMethod::FlatPerDay->value;
+        $isPercent = $this->fine_method === FineMethod::PercentPerDay->value;
+
+        try {
+            if ($isFlat && ! preg_match('/^\d+(\.\d{1,2})?$/', $this->fine_flat_amount)) {
+                return null;
+            }
+            if ($isPercent && ! is_numeric($this->fine_percent)) {
+                return null;
+            }
+
+            return new FineRule([
+                'method' => $this->fine_method,
+                'base' => $this->fine_base,
+                'allowance_days' => max($this->fine_allowance_days, 0),
+                'flat_daily_laari' => $isFlat ? Money::fromRufiyaa($this->fine_flat_amount)->laari : null,
+                'percent_daily_bps' => $isPercent ? (int) round(((float) $this->fine_percent) * 100) : null,
+                'first_month_laari' => preg_match('/^\d+(\.\d{1,2})?$/', $this->fine_first_month)
+                    ? Money::fromRufiyaa($this->fine_first_month)->laari : null,
+                'subsequent_month_laari' => preg_match('/^\d+(\.\d{1,2})?$/', $this->fine_subsequent_month)
+                    ? Money::fromRufiyaa($this->fine_subsequent_month)->laari : null,
+                'cap_laari' => preg_match('/^\d+(\.\d{1,2})?$/', $this->fine_cap)
+                    ? Money::fromRufiyaa($this->fine_cap)->laari : null,
+                'effective_from' => $this->fine_effective_from !== '' ? $this->fine_effective_from : null,
+                'effective_to' => $this->fine_ongoing || $this->fine_effective_to === ''
+                    ? null : $this->fine_effective_to,
+            ]);
+        } catch (Throwable) {
+            return null; // mid-typing — no example beats a wrong one
+        }
+    }
+
+    /**
+     * A worked example priced by the REAL calculator on this lease's own rent:
+     * an invoice left exactly ten days late. What you see is what tenants get.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function finePreviewExample(Lease $lease, FineRule $draft): ?array
+    {
+        try {
+            $baseLaari = $draft->base === FineBase::RentPlusCharges
+                ? $lease->monthlyRent()->laari + intdiv($lease->csrAnnualAmount()->laari, 12)
+                : $lease->monthlyRent()->laari;
+
+            $due = CarbonImmutable::parse(today()->toDateString())
+                ->startOfMonth()->day(min($lease->due_day, 28));
+            $asOf = $due->addDays($draft->allowance_days + 10);
+
+            $breakdown = app(FineCalculator::class)->calculate(
+                $draft, Money::fromLaari($baseLaari), $due, $asOf,
+            );
+
+            return [
+                'base' => Money::fromLaari($baseLaari),
+                'due' => $due,
+                'as_of' => $asOf,
+                'breakdown' => $breakdown,
+            ];
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Which period actually fined which invoice (FR-FIN-12). Read from the
+     * invoice's recorded rule, falling back to resolving it from the issue date
+     * for rows last fined before that column existed.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function fineHistory(Lease $lease): Collection
+    {
+        return $lease->invoices()
+            ->with(['fineRule', 'lineItems'])
+            ->where(fn ($q) => $q->where('fine_laari', '>', 0)->orWhereNotNull('fine_rule_id'))
+            ->orderByDesc('due_date')->orderByDesc('id')
+            ->limit(25)
+            ->get()
+            ->map(function (Invoice $invoice): array {
+                $meta = $invoice->lineItems
+                    ->firstWhere('type', InvoiceLineType::Fine)?->meta ?? [];
+
+                return [
+                    'invoice' => $invoice,
+                    'rule' => $invoice->governingFineRule(),
+                    'late_days' => $meta['late_days'] ?? null,
+                    'still_accruing' => $invoice->outstandingPrincipalLaari() > 0,
+                ];
+            });
     }
 
     /**
@@ -515,7 +823,7 @@ class Index extends Component
 
             return 'First invoice: '.$firstBillable->format('F Y')
                 .' · due '.$due->format('j F Y').' — '.$why.'.';
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null; // partial input mid-edit — no hint beats a wrong hint
         }
     }
@@ -650,6 +958,7 @@ class Index extends Component
             'fineRuleLeaseId', 'fine_method', 'fine_base', 'fine_allowance_days',
             'fine_flat_amount', 'fine_percent', 'fine_first_month',
             'fine_subsequent_month', 'fine_cap', 'fine_effective_from',
+            'fine_effective_to', 'fine_ongoing', 'showFineForm',
         );
         $this->resetValidation();
     }

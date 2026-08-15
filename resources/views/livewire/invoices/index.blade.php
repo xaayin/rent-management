@@ -110,12 +110,18 @@
                                     <button wire:click="sendReminder({{ $invoice->id }})" class="icon-btn" title="Send reminder" aria-label="Send reminder">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
                                     </button>
-                                    @can('create', \App\Models\Payment::class)
-                                        <button wire:click="startPayment({{ $invoice->id }})" class="icon-btn text-brand-600 hover:bg-selected" title="Record payment" aria-label="Record payment">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
-                                        </button>
-                                    @endcan
                                 @endif
+                                {{-- Not gated on Paid: a settled invoice is exactly when a
+                                     payment needs reversing, and this panel is the only way
+                                     to reach its payments. --}}
+                                @can('create', \App\Models\Payment::class)
+                                    @php $settledRow = $invoice->status === \App\Enums\InvoiceStatus::Paid; @endphp
+                                    <button wire:click="startPayment({{ $invoice->id }})" class="icon-btn text-brand-600 hover:bg-selected"
+                                        title="{{ $settledRow ? 'Payments on this invoice' : 'Record payment' }}"
+                                        aria-label="{{ $settledRow ? 'Payments on this invoice' : 'Record payment' }}">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                                    </button>
+                                @endcan
                             </span>
                         </td>
                     </tr>
@@ -159,7 +165,7 @@
                     <div class="mb-1 flex items-center gap-2 text-11 font-bold uppercase tracking-[0.08em] text-faint">
                         <span>Invoice {{ $payingInvoice->number }}</span><span>·</span><span>{{ $payingInvoice->periodLabel() }}</span>
                     </div>
-                    <h2 class="truncate text-24 font-bold text-ink">Record payment</h2>
+                    <h2 class="truncate text-24 font-bold text-ink">{{ $paying['settled'] ? 'Payments' : 'Record payment' }}</h2>
                     <p class="truncate text-13 text-muted">{{ $payingInvoice->lease->tenant->name }} · {{ $payingInvoice->lease->property->name }}</p>
                 </div>
                 <button wire:click="cancelPayment" class="icon-btn" aria-label="Close">
@@ -186,6 +192,17 @@
                     </div>
                 @endif
 
+                @if ($paying['settled'])
+                    <div class="rounded-md border border-success-bg bg-success-bg/40 px-4 py-3">
+                        <p class="text-12 font-bold uppercase tracking-[0.08em] text-success-fg">Settled</p>
+                        <p class="mt-1 text-13 text-ink">
+                            This invoice is settled in full — there is nothing left to pay.
+                            Reverse a payment below if it needs to be undone.
+                        </p>
+                    </div>
+                @endif
+
+                @unless ($paying['settled'])
                 {{-- due summary (live for the chosen payment date) --}}
                 <div class="space-y-1.5 rounded-md border border-line-2 bg-sunken p-3 text-13">
                     <div class="flex justify-between"><span class="text-subtle">Rent &amp; charges outstanding</span><span class="tabular-nums">{{ $paying['outstanding_principal']->format() }}</span></div>
@@ -229,6 +246,7 @@
                         <p class="pt-1 text-11 text-muted">Allocation: rent first, then fine. The fine is computed on the payment date.</p>
                     </div>
                 @endif
+                @endunless
 
                 {{-- payments on this invoice --}}
                 @if ($payingInvoice->payments->isNotEmpty())
@@ -250,7 +268,7 @@
                                                 @endif
                                             </td>
                                             <td class="px-3 py-2 text-right tabular-nums">{{ $payment->amount()->format() }}</td>
-                                            <td class="w-20 px-2 py-2">
+                                            <td class="w-32 px-2 py-2">
                                                 @if (! $payment->isReversal())
                                                     <span class="flex items-center justify-end gap-0.5">
                                                         @can('view reports')
@@ -260,8 +278,10 @@
                                                         @endcan
                                                         @if (! $payment->isReversed())
                                                             @can('reverse', $payment)
-                                                                <button wire:click="startReverse({{ $payment->id }})" class="icon-btn h-7 w-7 text-danger-fg hover:bg-danger-bg" title="Reverse payment" aria-label="Reverse payment">
-                                                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+                                                                <button wire:click="startReverse({{ $payment->id }})" aria-label="Reverse payment {{ $payment->receipt_number }}"
+                                                                    class="inline-flex h-7 items-center gap-1 rounded px-2 text-12 font-semibold text-danger-fg hover:bg-danger-bg">
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+                                                                    Reverse
                                                                 </button>
                                                             @endcan
                                                         @endif
@@ -298,8 +318,10 @@
 
             {{-- footer --}}
             <div class="flex items-center justify-end gap-2 border-t border-line-2 bg-sunken px-5 py-3.5">
-                <button wire:click="cancelPayment" class="btn-subtle">Cancel</button>
-                <button wire:click="confirmPayment" class="btn-primary">Record payment</button>
+                <button wire:click="cancelPayment" class="btn-subtle">{{ $paying['settled'] ? 'Close' : 'Cancel' }}</button>
+                @unless ($paying['settled'])
+                    <button wire:click="confirmPayment" class="btn-primary">Record payment</button>
+                @endunless
             </div>
         </div>
     @endif

@@ -452,11 +452,17 @@
                 <div class="mx-5 mb-4 rounded-md border border-line bg-surface p-4 shadow-card">
                     <div class="mb-2.5 flex items-center justify-between">
                         <p class="font-display text-16 font-bold tracking-[-0.01em] text-ink">Fine rule</p>
-                        @if ($detail['rule'])
-                            <span class="loz loz-info">{{ $detail['rule']->method->label() }}</span>
-                        @else
-                            <span class="loz loz-neutral">None</span>
-                        @endif
+                        <div class="flex items-center gap-2">
+                            @if ($detail['rule'])
+                                <span class="loz loz-info">{{ $detail['rule']->method->label() }}</span>
+                            @else
+                                <span class="loz loz-neutral">None</span>
+                            @endif
+                            @can('configureFineRule', $lease)
+                                <button wire:click="configureFine({{ $lease->id }})"
+                                    class="text-12 font-semibold text-brand-600 hover:underline">Schedule</button>
+                            @endcan
+                        </div>
                     </div>
                     <div class="space-y-2 text-13 text-muted">
                         @if ($detail['rule'])
@@ -466,7 +472,7 @@
                             @if ($detail['rule']->cap_laari !== null)
                                 <div class="flex justify-between gap-4"><span>Maximum cap</span><span class="text-right tabular-nums text-ink">{{ \App\Support\Money::fromLaari($detail['rule']->cap_laari)->format() }}</span></div>
                             @endif
-                            <div class="flex justify-between gap-4"><span>Effective from</span><span class="text-right text-ink">{{ $detail['rule']->effective_from->format('j M Y') }}</span></div>
+                            <div class="flex justify-between gap-4"><span>Applies</span><span class="text-right text-ink">{{ $detail['rule']->periodLabel() }}</span></div>
                             @if ($detail['overdue_fine'] !== null && $detail['overdue_fine']->isPositive())
                                 <div class="mt-2.5 flex justify-between gap-4 border-t border-line-2 pt-2.5">
                                     <span class="font-semibold text-danger-fg">Accrued fine to date ({{ $detail['overdue_days'] }} days overdue)</span>
@@ -478,72 +484,6 @@
                         @endif
                     </div>
                 </div>
-
-                {{-- fine rule form --}}
-                @if ($fineRuleLeaseId === $lease->id)
-                    <div class="mx-5 mb-4 rounded-md border border-line bg-sunken p-4">
-                        <p class="fl mb-3">Change fine rule</p>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="fl">Method</label>
-                                <x-select wire:model.live="fine_method" class="mt-1"
-                                    :options="collect($fineMethods)->mapWithKeys(fn ($m) => [$m->value => $m->label()])" />
-                                @error('fine_method') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
-                            </div>
-
-                            @if ($fine_method === 'flat_per_day')
-                                <div>
-                                    <label class="fl">Amount per day (MVR)</label>
-                                    <input type="text" wire:model="fine_flat_amount" placeholder="3.75" class="input mt-1 text-right tabular-nums">
-                                    @error('fine_flat_amount') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
-                                </div>
-                            @elseif ($fine_method === 'percent_per_day')
-                                <div>
-                                    <label class="fl">Percent per day (%)</label>
-                                    <input type="text" wire:model="fine_percent" placeholder="0.5" class="input mt-1 text-right tabular-nums">
-                                    @error('fine_percent') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
-                                </div>
-                                <div>
-                                    <label class="fl">Base</label>
-                                    <x-select wire:model="fine_base" class="mt-1"
-                                        :options="collect($fineBases)->mapWithKeys(fn ($b) => [$b->value => ucfirst($b->label())])" />
-                                    @error('fine_base') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
-                                </div>
-                            @else
-                                <div>
-                                    <label class="fl">First month (MVR)</label>
-                                    <input type="text" wire:model="fine_first_month" class="input mt-1 text-right tabular-nums">
-                                    @error('fine_first_month') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
-                                </div>
-                                <div>
-                                    <label class="fl">Each further month (MVR)</label>
-                                    <input type="text" wire:model="fine_subsequent_month" class="input mt-1 text-right tabular-nums">
-                                    @error('fine_subsequent_month') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
-                                </div>
-                            @endif
-
-                            <div>
-                                <label class="fl">Allowance (days)</label>
-                                <input type="number" wire:model="fine_allowance_days" class="input mt-1">
-                                @error('fine_allowance_days') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
-                            </div>
-                            <div>
-                                <label class="fl">Maximum cap (MVR, optional)</label>
-                                <input type="text" wire:model="fine_cap" class="input mt-1 text-right tabular-nums">
-                                @error('fine_cap') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
-                            </div>
-                            <div>
-                                <label class="fl">Effective from</label>
-                                <input type="date" wire:model="fine_effective_from" class="input mt-1">
-                                @error('fine_effective_from') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
-                            </div>
-                        </div>
-                        <div class="mt-3 flex gap-2">
-                            <button wire:click="saveFineRule" class="btn-primary">Save fine rule</button>
-                            <button wire:click="$set('fineRuleLeaseId', null)" class="btn-subtle">Cancel</button>
-                        </div>
-                    </div>
-                @endif
 
                 {{-- recent invoices --}}
                 <div class="mx-5 mb-4 rounded-md border border-line bg-surface p-4 shadow-card">
@@ -669,5 +609,258 @@
             </div>
             </div>
         </div>
+    @endif
+
+    {{-- ============ Fine schedule manager ============
+         Fine rules are periods on a timeline. This screen shows the whole strip
+         — every period AND the no-fine gaps between them — so nobody has to
+         infer coverage by comparing dates, then lets a new period be added with
+         a live conflict check and a worked example priced by the real engine. --}}
+    @if ($fineSchedule)
+        <x-modal title="Fine schedule" :description="$fineSchedule['lease']->property?->name.' · '.$fineSchedule['lease']->tenant?->name"
+            close="closeFineSchedule" :wide="true">
+            <div class="max-h-[70vh] overflow-y-auto px-5 pb-1">
+
+                {{-- Timeline: periods and the gaps between them --}}
+                <p class="fl mb-2">Coverage</p>
+                <ol class="mb-5 space-y-1.5">
+                    @forelse ($fineSchedule['timeline'] as $segment)
+                        @if ($segment['type'] === 'gap')
+                            <li class="flex items-center gap-3 rounded border border-dashed border-line px-3.5 py-2.5">
+                                <span class="loz loz-neutral shrink-0">No fine</span>
+                                <span class="min-w-0 flex-1 text-13 text-muted">{{ $segment['label'] }} — invoices issued in this window accrue no fine.</span>
+                            </li>
+                        @else
+                            <li class="rounded border border-line bg-surface px-3.5 py-3 shadow-xs {{ $segment['status'] === 'active' ? 'border-l-[3px] border-l-brand-500' : '' }}">
+                                <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                                    <span class="loz {{ match ($segment['status']) {
+                                        'active' => 'loz-success',
+                                        'scheduled' => 'loz-discovery',
+                                        default => 'loz-neutral',
+                                    } }}">{{ ucfirst($segment['status']) }}</span>
+                                    <span class="text-13 font-semibold text-ink">{{ $segment['label'] }}</span>
+                                    @if ($segment['dependents'] > 0)
+                                        <span class="loz loz-neutral">{{ $segment['dependents'] }} {{ \Illuminate\Support\Str::plural('invoice', $segment['dependents']) }}</span>
+                                    @endif
+                                    <span class="ml-auto flex items-center gap-1">
+                                        @can('configureFineRule', $fineSchedule['lease'])
+                                            {{-- Edit and delete stay open while nothing was invoiced
+                                                 under the period; after that the only safe move is to
+                                                 end it and start a new one. --}}
+                                            @if ($segment['editable'])
+                                                <button wire:click="editFinePeriod({{ $segment['rule']->id }})"
+                                                    class="icon-btn" title="Edit this period" aria-label="Edit this period">
+                                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                                </button>
+                                                <button wire:click="removeFinePeriod({{ $segment['rule']->id }})"
+                                                    wire:confirm="Delete this fine period? No invoice falls inside it, so nothing already billed changes."
+                                                    class="icon-btn" title="Delete this period" aria-label="Delete this period">
+                                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
+                                                </button>
+                                            @endif
+                                            @if ($segment['rule']->isOpenEnded() && $segment['status'] === 'active')
+                                                <button wire:click="endFinePeriod({{ $segment['rule']->id }})"
+                                                    class="icon-btn" title="End this period today" aria-label="End this period today">
+                                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+                                                </button>
+                                            @endif
+                                        @endcan
+                                    </span>
+                                </div>
+                                <p class="mt-1.5 text-13 text-ink">{{ $segment['rule']->summary() }}</p>
+                                <p class="mt-0.5 text-12 text-muted">
+                                    Base {{ $segment['rule']->base->label() }} · {{ $segment['rule']->allowance_days }}-day allowance
+                                    @if ($segment['rule']->cap_laari !== null)
+                                        · capped at {{ \App\Support\Money::fromLaari($segment['rule']->cap_laari)->format() }}
+                                    @endif
+                                    @if ($segment['dependents'] > 0)
+                                        <span class="block">Locked — invoices are fined from it. End it and add a new period to change the rule.</span>
+                                    @endif
+                                </p>
+                            </li>
+                        @endif
+                    @empty
+                        <li class="rounded border border-dashed border-line px-3.5 py-4 text-center text-13 text-muted">
+                            No fine periods yet — this lease accrues no fines at all.
+                        </li>
+                    @endforelse
+                </ol>
+
+                @can('configureFineRule', $fineSchedule['lease'])
+                    @if (! $showFineForm)
+                        <button wire:click="$set('showFineForm', true)" class="btn-subtle mb-4">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+                            Add a period
+                        </button>
+                    @else
+                        <div class="mb-5 rounded-md border border-line bg-sunken p-4">
+                            <p class="fl mb-3">{{ $editingFineRuleId ? 'Edit period' : 'Add a period' }}</p>
+
+                            {{-- Period first: it is the thing being scheduled --}}
+                            <div class="mb-3 flex flex-wrap gap-1.5">
+                                <button type="button" wire:click="applyFinePreset('from_today')" class="chip">From today onwards</button>
+                                <button type="button" wire:click="applyFinePreset('this_year')" class="chip">This calendar year</button>
+                                <button type="button" wire:click="applyFinePreset('rest_of_term')" class="chip">Rest of the lease</button>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="fl fl-req">Applies from</label>
+                                    <input type="date" wire:model.live="fine_effective_from" class="input mt-1">
+                                    @error('fine_effective_from') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="fl">Applies until</label>
+                                    <input type="date" wire:model.live="fine_effective_to" class="input mt-1" @disabled($fine_ongoing)>
+                                    <label class="mt-1.5 flex items-center gap-2 text-12 text-muted">
+                                        <input type="checkbox" wire:model.live="fine_ongoing" class="rounded border-line text-brand-600 focus:ring-brand-300/40">
+                                        No end date — runs until a later period supersedes it
+                                    </label>
+                                    @error('fine_effective_to') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                                </div>
+                            </div>
+
+                            @if ($fineSchedule['inspection'])
+                                <p class="mt-2.5 rounded border px-3 py-2 text-12 {{ match ($fineSchedule['inspection']['status']) {
+                                    'conflict' => 'border-danger-fg/30 bg-danger-bg text-danger-fg',
+                                    'supersedes' => 'border-warning-fg/30 bg-warning-bg text-warning-fg',
+                                    default => 'border-line bg-surface text-muted',
+                                } }}">{{ $fineSchedule['inspection']['message'] }}</p>
+                            @endif
+
+                            <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="fl">Method</label>
+                                    <x-select wire:model.live="fine_method" class="mt-1"
+                                        :options="collect($fineMethods)->mapWithKeys(fn ($m) => [$m->value => $m->label()])" />
+                                    @error('fine_method') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                                </div>
+
+                                @if ($fine_method === 'flat_per_day')
+                                    <div>
+                                        <label class="fl fl-req">Amount per day (MVR)</label>
+                                        <input type="text" wire:model.live.debounce.400ms="fine_flat_amount" placeholder="3.75" class="input mt-1 text-right tabular-nums">
+                                        @error('fine_flat_amount') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                                    </div>
+                                @elseif ($fine_method === 'percent_per_day')
+                                    <div>
+                                        <label class="fl fl-req">Percent per day (%)</label>
+                                        <input type="text" wire:model.live.debounce.400ms="fine_percent" placeholder="0.5" class="input mt-1 text-right tabular-nums">
+                                        @error('fine_percent') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                                    </div>
+                                    <div>
+                                        <label class="fl">Base</label>
+                                        <x-select wire:model.live="fine_base" class="mt-1"
+                                            :options="collect($fineBases)->mapWithKeys(fn ($b) => [$b->value => ucfirst($b->label())])" />
+                                    </div>
+                                @else
+                                    <div>
+                                        <label class="fl fl-req">First month (MVR)</label>
+                                        <input type="text" wire:model.live.debounce.400ms="fine_first_month" class="input mt-1 text-right tabular-nums">
+                                        @error('fine_first_month') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                                    </div>
+                                    <div>
+                                        <label class="fl fl-req">Each further month (MVR)</label>
+                                        <input type="text" wire:model.live.debounce.400ms="fine_subsequent_month" class="input mt-1 text-right tabular-nums">
+                                        @error('fine_subsequent_month') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                                    </div>
+                                @endif
+
+                                <div>
+                                    <label class="fl">Allowance (days)</label>
+                                    <input type="number" wire:model.live.debounce.400ms="fine_allowance_days" class="input mt-1">
+                                    @error('fine_allowance_days') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="fl">Maximum cap (MVR, optional)</label>
+                                    <input type="text" wire:model.live.debounce.400ms="fine_cap" class="input mt-1 text-right tabular-nums">
+                                    @error('fine_cap') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                                </div>
+                            </div>
+
+                            {{-- Worked example, priced by the real FineCalculator on
+                                 this lease's own rent — what you see is what tenants get. --}}
+                            @if ($fineSchedule['example'])
+                                @php($ex = $fineSchedule['example'])
+                                <div class="mt-4 rounded border border-line bg-surface p-3.5">
+                                    <p class="text-12 font-semibold uppercase tracking-wide text-muted">What this charges</p>
+                                    <p class="mt-1.5 text-13 text-subtle">
+                                        An invoice of {{ $ex['base']->format() }} due {{ $ex['due']->format('j M Y') }},
+                                        still unpaid on {{ $ex['as_of']->format('j M Y') }}:
+                                    </p>
+                                    <div class="mt-2 flex items-baseline justify-between gap-4 border-t border-line-2 pt-2">
+                                        <span class="text-13 text-muted">{{ $ex['breakdown']->summary() }}</span>
+                                        <span class="text-16 font-bold tabular-nums text-ink">{{ $ex['breakdown']->total()->format() }}</span>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div class="mt-4 flex gap-2">
+                                <button wire:click="saveFineRule" class="btn-primary"
+                                    @disabled(($fineSchedule['inspection']['status'] ?? null) === 'conflict')>
+                                    {{ $editingFineRuleId ? 'Update period' : 'Save period' }}
+                                </button>
+                                <button wire:click="cancelFineForm" class="btn-subtle">Cancel</button>
+                            </div>
+                        </div>
+                    @endif
+                @endcan
+
+                {{-- How the rules have actually been applied (FR-FIN-12) --}}
+                <p class="fl mb-2">Applied to</p>
+                @if ($fineSchedule['history']->isEmpty())
+                    <p class="mb-4 rounded border border-dashed border-line px-3.5 py-4 text-center text-13 text-muted">
+                        No invoice on this lease has been fined yet.
+                    </p>
+                @else
+                    <div class="mb-4 overflow-hidden rounded border border-line">
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[560px] text-13">
+                                <thead>
+                                    <tr class="border-b border-line bg-sunken">
+                                        <th class="th text-left">Invoice</th>
+                                        <th class="th text-left">Due</th>
+                                        <th class="th text-right">Days late</th>
+                                        <th class="th text-right">Fine</th>
+                                        <th class="th text-left">Under period</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-line-2">
+                                    @foreach ($fineSchedule['history'] as $row)
+                                        <tr>
+                                            <td class="td">
+                                                <span class="font-medium text-ink">{{ $row['invoice']->number }}</span>
+                                                <span class="block text-12 text-muted">{{ $row['invoice']->periodLabel() }}</span>
+                                            </td>
+                                            <td class="td text-subtle">{{ $row['invoice']->due_date->format('j M Y') }}</td>
+                                            <td class="td text-right tabular-nums">{{ $row['late_days'] ?? '—' }}</td>
+                                            <td class="td text-right tabular-nums font-medium {{ $row['invoice']->fine_laari > 0 ? 'text-danger-fg' : '' }}">
+                                                {{ \App\Support\Money::fromLaari($row['invoice']->fine_laari)->format() }}
+                                                @if ($row['still_accruing'] && $row['invoice']->fine_laari > 0)
+                                                    <span class="block text-11 font-normal text-muted">still accruing</span>
+                                                @endif
+                                            </td>
+                                            <td class="td">
+                                                @if ($row['rule'])
+                                                    <span class="text-ink">{{ $row['rule']->periodLabel() }}</span>
+                                                    <span class="block text-12 text-muted">{{ $row['rule']->summary() }}</span>
+                                                @else
+                                                    <span class="text-muted">No rule in force</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+            </div>
+
+            <div class="flex items-center justify-between gap-2 rounded-b-xl border-t border-line-2 bg-sunken px-5 py-3.5">
+                <p class="text-12 text-muted">A period governs every invoice <em>issued</em> within it.</p>
+                <button wire:click="closeFineSchedule" class="btn-subtle">Done</button>
+            </div>
+        </x-modal>
     @endif
 </div>

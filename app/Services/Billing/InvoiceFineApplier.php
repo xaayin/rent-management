@@ -96,6 +96,9 @@ class InvoiceFineApplier
             $invoice->update([
                 'fine_laari' => $breakdown->totalLaari,
                 'total_laari' => $invoice->rent_laari + $invoice->charges_laari + $breakdown->totalLaari,
+                // Name the period that produced this figure, so the fine on an
+                // invoice can always be traced to the rule that made it.
+                'fine_rule_id' => $breakdown->ruleId,
             ]);
 
             // The accruing fine line is recomputed daily by definition

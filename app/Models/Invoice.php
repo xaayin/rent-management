@@ -35,6 +35,7 @@ class Invoice extends Model
         'rent_laari',
         'charges_laari',
         'fine_laari',
+        'fine_rule_id',
         'total_laari',
     ];
 
@@ -67,6 +68,28 @@ class Invoice extends Model
     public function lease(): BelongsTo
     {
         return $this->belongsTo(Lease::class);
+    }
+
+    /**
+     * The fine period that produced this invoice's current fine.
+     *
+     * @return BelongsTo<FineRule, $this>
+     */
+    public function fineRule(): BelongsTo
+    {
+        return $this->belongsTo(FineRule::class);
+    }
+
+    /**
+     * The period governing this invoice. Falls back to resolving it from the
+     * issue date for invoices last fined before the column existed, and for
+     * those not yet late enough to have been fined at all.
+     */
+    public function governingFineRule(): ?FineRule
+    {
+        return $this->fineRule ?? $this->lease?->fineRuleOn(
+            CarbonImmutable::parse($this->created_at->toDateString()),
+        );
     }
 
     /** @return HasMany<InvoiceLineItem, $this> */
