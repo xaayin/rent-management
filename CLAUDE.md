@@ -66,7 +66,8 @@ See "Deferred backlog" below for what remains.
    boundary. Percentages are stored as **integer basis points** (0.5%/day = 50 bps).
 2. **Financial records are append-only.** `Payment` and `Invoice` models throw on delete;
    `Payment` throws on ANY update (receipt numbers immutable). Corrections are reversing
-   entries (negative payment rows) with a mandatory reason.
+   entries (negative payment rows) with a mandatory reason. An invoice raised in error is
+   **voided, never deleted** (`InvoiceStatus::Cancelled`) — see "Invoice cancellation" below.
 3. **Business logic lives in services** (`app/Services/Billing`, `Reminders`, `Reporting`,
    `Approvals`, `Import`, `Sms`), not in Livewire components or controllers. Livewire components hold only
    form state, validation and authorization.
@@ -74,8 +75,9 @@ See "Deferred backlog" below for what remains.
    `$this->authorize()` / policy checks, matching PRD §6.1. Hiding UI is never enough.
 5. **English only** — UI, invoices, receipts, notifications. (Imported registry data may
    contain Thaana text — that is data, not UI.)
-6. **Idempotent scheduled jobs.** Exactly one invoice per lease per cycle (DB unique on
-   lease+year+month); re-runs return the existing record. The importer upserts by natural keys.
+6. **Idempotent scheduled jobs.** Exactly one LIVE invoice per lease per cycle (DB unique on
+   the derived `invoices.period_key`, which is NULL once an invoice is cancelled); re-runs
+   return the existing record. The importer upserts by natural keys.
 7. **Tests first for money-critical code.** The fine-engine worked examples in the PRD are the
    canonical test cases; date maths is calendar-day granular (normalise with `startOfDay()` —
    a time of day must never tip an exact-month boundary).
@@ -165,6 +167,22 @@ See "Deferred backlog" below for what remains.
   malformed config falls back to `start_day_based`. `due_day` is clamped to the landing month's
   length (30 → 28 Feb). Changing the config affects invoices generated from then on —
   already-issued invoices keep their recorded due date (money never reinterprets itself).
+- **Invoice cancellation** (`App\Services\Billing\InvoiceCanceller`): an invoice raised in
+  error is **voided**, keeping its row and its `YYYY/NNN` number — a hole in a government
+  numbering sequence is unexplainable to an auditor. Allowed only while payments net to **zero**
+  (so a recorded-then-reversed payment does NOT block it), reason mandatory, re-checked under
+  `lockForUpdate()`. Every balance/statement/reminder/report already filters on status, so a
+  Cancelled invoice simply stops being money; `outstandingTotalLaari()` also returns 0 outright
+  and `refreshPaymentStatus()` refuses to resurrect it. **The month is freed**: the
+  one-live-invoice-per-lease-per-month rule moved from a composite unique to a nullable-unique
+  `invoices.period_key` (NULL when cancelled — the same portable trick as approvals'
+  `pending_key`), derived in a model `saving` hook so it can never be forgotten, and
+  `overlapping()` ignores cancelled rows. NOTE for MySQL: the composite unique was the only
+  index supporting the `lease_id` FK, so the migration adds `invoices_lease_id_index` **before**
+  dropping it. Gated on `IssueInvoices` (`InvoicePolicy::cancel`) — tighten to supervisor-only
+  or route through approvals if the council asks. The PDF prints a "Cancelled — not payable"
+  notice. **Adding an InvoiceStatus case breaks exhaustive `match` blocks in blades** — four
+  status→lozenge maps exist (invoices/leases/tenants/portal).
 - **Bank-transfer claims (T3)** (`App\Services\Portal\TransferClaimService`): a tenant who
   paid off-island submits amount + date + bank reference from the portal's "Pay by transfer"
   tab (`transfer_claims`, one pending per tenant); Finance/Supervisor confirm or reject it from

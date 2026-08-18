@@ -95,6 +95,7 @@
                                     \App\Enums\InvoiceStatus::PartlyPaid => 'loz-warning',
                                     \App\Enums\InvoiceStatus::Overdue => 'loz-danger',
                                     \App\Enums\InvoiceStatus::Issued => 'loz-info',
+                                    \App\Enums\InvoiceStatus::Cancelled => 'loz-neutral',
                                 };
                             @endphp
                             <span class="loz {{ $badge }}">{{ $invoice->status->label() }}</span>
@@ -114,6 +115,14 @@
                                 {{-- Not gated on Paid: a settled invoice is exactly when a
                                      payment needs reversing, and this panel is the only way
                                      to reach its payments. --}}
+                                @can('cancel', $invoice)
+                                    @if (app(\App\Services\Billing\InvoiceCanceller::class)->canCancel($invoice))
+                                        <button wire:click="startCancel({{ $invoice->id }})" class="icon-btn text-danger-fg hover:bg-danger-bg"
+                                            title="Cancel this invoice" aria-label="Cancel invoice {{ $invoice->number }}">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg>
+                                        </button>
+                                    @endif
+                                @endcan
                                 @can('create', \App\Models\Payment::class)
                                     @php $settledRow = $invoice->status === \App\Enums\InvoiceStatus::Paid; @endphp
                                     <button wire:click="startPayment({{ $invoice->id }})" class="icon-btn text-brand-600 hover:bg-selected"
@@ -392,6 +401,39 @@
                 <button type="button" wire:click="createInvoice" class="btn-primary" @disabled($newInvoice !== null && $newInvoice['error'] !== null)>
                     Create invoice
                 </button>
+            </div>
+        </x-modal>
+    @endif
+
+    {{-- ============ Modal: cancel (void) an invoice ============
+         The invoice and its number are kept — a gap in a government numbering
+         sequence is unexplainable — but the charge stops counting anywhere. --}}
+    @if ($cancelling)
+        <x-modal title="Cancel invoice {{ $cancelling->number }}" close="cancelCancellation">
+            <div class="space-y-4 px-5 py-4">
+                <div class="rounded-md border border-warning-bg bg-warning-bg/40 px-4 py-3 text-13">
+                    <p class="text-ink">
+                        {{ $cancelling->lease->tenant->name }} · {{ $cancelling->periodLabel() }} ·
+                        <span class="tabular-nums">{{ $cancelling->total()->format() }}</span>
+                    </p>
+                    <p class="mt-1.5 text-muted">
+                        The invoice keeps its number and stays on the record, but it stops counting
+                        towards any balance, statement, reminder or report — and
+                        {{ $cancelling->periodLabel() }} becomes billable again so a corrected
+                        invoice can be raised. This cannot be undone.
+                    </p>
+                </div>
+
+                <div>
+                    <label class="fl-req">Reason</label>
+                    <input type="text" wire:model="cancellation_reason" class="input mt-1"
+                        placeholder="e.g. Duplicate of 2026/004">
+                    @error('cancellation_reason') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 rounded-b-xl border-t border-line-2 bg-sunken px-5 py-3.5">
+                <button wire:click="cancelCancellation" class="btn-subtle">Keep invoice</button>
+                <button wire:click="confirmCancel" class="btn-danger">Cancel invoice</button>
             </div>
         </x-modal>
     @endif

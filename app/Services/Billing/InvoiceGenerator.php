@@ -117,6 +117,9 @@ class InvoiceGenerator
     {
         return Invoice::query()
             ->where('lease_id', $lease->id)
+            // A voided invoice covers nothing — that is what frees the month
+            // for the corrected one.
+            ->where('status', '!=', InvoiceStatus::Cancelled->value)
             ->whereDate('period_start', '<=', $end->toDateString())
             ->whereDate('period_end', '>=', $start->toDateString())
             ->get();

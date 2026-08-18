@@ -16,6 +16,9 @@ enum InvoiceStatus: string
     case Paid = 'paid';
     case Overdue = 'overdue';
 
+    /** Voided — raised in error, never paid, excluded from every balance. */
+    case Cancelled = 'cancelled';
+
     public function label(): string
     {
         return match ($this) {
@@ -23,6 +26,7 @@ enum InvoiceStatus: string
             self::PartlyPaid => 'Partly paid',
             self::Paid => 'Paid',
             self::Overdue => 'Overdue',
+            self::Cancelled => 'Cancelled',
         };
     }
 }

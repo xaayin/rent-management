@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Reporting;
 
+use App\Enums\InvoiceStatus;
 use App\Models\Tenant;
 use App\Support\Money;
 use Illuminate\Support\Collection;
@@ -28,7 +29,11 @@ class TenantLedger
         $entries = collect();
 
         $leases = $tenant->leases()
-            ->with(['property', 'invoices.payments.receipt'])
+            ->with([
+                'property',
+                'invoices' => fn ($query) => $query->where('status', '!=', InvoiceStatus::Cancelled->value),
+                'invoices.payments.receipt',
+            ])
             ->get();
 
         foreach ($leases as $lease) {

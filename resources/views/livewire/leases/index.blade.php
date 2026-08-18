@@ -506,6 +506,7 @@
                                                     \App\Enums\InvoiceStatus::Paid => 'loz-success',
                                                     \App\Enums\InvoiceStatus::PartlyPaid => 'loz-warning',
                                                     \App\Enums\InvoiceStatus::Overdue => 'loz-danger',
+                                                    \App\Enums\InvoiceStatus::Cancelled => 'loz-neutral',
                                                     default => 'loz-info',
                                                 } }}">{{ $invoice->status->label() }}</span>
                                             </td>

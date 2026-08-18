@@ -11,6 +11,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\TenantType;
 use App\Enums\UsageType;
 use App\Exceptions\InvalidApprovalException;
+use App\Exceptions\InvalidInvoiceCancellationException;
 use App\Exceptions\InvalidInvoiceRangeException;
 use App\Exceptions\InvalidPaymentException;
 use App\Jobs\GenerateInvoices;
@@ -21,6 +22,7 @@ use App\Models\Lease;
 use App\Models\Payment;
 use App\Services\Approvals\ApprovalService;
 use App\Services\Billing\DueDateCalculator;
+use App\Services\Billing\InvoiceCanceller;
 use App\Services\Billing\InvoiceGenerator;
 use App\Services\Billing\PaymentRecorder;
 use App\Support\Money;
@@ -60,6 +62,11 @@ class Index extends Component
     public ?int $reversingPaymentId = null;
 
     public string $reversal_reason = '';
+
+    // Cancellation flow — voiding an invoice raised in error.
+    public ?int $cancellingInvoiceId = null;
+
+    public string $cancellation_reason = '';
 
     // New-invoice modal (advance billing, FR-INV-05).
     public bool $creatingInvoice = false;
@@ -364,10 +371,60 @@ class Index extends Component
         $this->reset('reversingPaymentId', 'reversal_reason');
     }
 
+    /**
+     * Open the void confirmation for an invoice raised in error.
+     */
+    public function startCancel(int $invoiceId): void
+    {
+        $invoice = Invoice::findOrFail($invoiceId);
+        $this->authorize('cancel', $invoice);
+
+        $this->cancellingInvoiceId = $invoice->id;
+        $this->cancellation_reason = '';
+        $this->resetValidation();
+    }
+
+    public function confirmCancel(): void
+    {
+        $invoice = Invoice::findOrFail($this->cancellingInvoiceId);
+        $this->authorize('cancel', $invoice);
+
+        $this->validate([
+            'cancellation_reason' => ['required', 'string', 'max:2000'],
+        ], [
+            'cancellation_reason.required' => 'Say why this invoice is being cancelled — it is kept on the record.',
+        ]);
+
+        try {
+            app(InvoiceCanceller::class)->cancel(
+                $invoice,
+                $this->cancellation_reason,
+                $this->currentUser(),
+            );
+        } catch (InvalidInvoiceCancellationException $e) {
+            $this->addError('cancellation_reason', $e->getMessage());
+
+            return;
+        }
+
+        $number = $invoice->number;
+        $this->reset('cancellingInvoiceId', 'cancellation_reason');
+        session()->flash('status', "Invoice {$number} cancelled — the number stays on the record.");
+    }
+
+    public function cancelCancellation(): void
+    {
+        $this->reset('cancellingInvoiceId', 'cancellation_reason');
+        $this->resetValidation();
+    }
+
     public function render(): View
     {
         return view('livewire.invoices.index', [
             'invoices' => $this->invoiceList(),
+            'cancelling' => $this->cancellingInvoiceId !== null
+                ? Invoice::with('lease.tenant')->find($this->cancellingInvoiceId)
+                : null,
             'paying' => $this->buildPaymentPreview(),
             'newInvoice' => $this->buildInvoicePreview(),
             'activeLeases' => $this->creatingInvoice

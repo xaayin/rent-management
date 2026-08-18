@@ -16,6 +16,9 @@
         .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; }
         .header .right { text-align: right; }
         .badge { display: inline-block; padding: 2px 10px; border: 1px solid #1D2B45; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+        .badge-void { border-color: #A8000B; color: #A8000B; }
+        .void-notice { margin: 0 0 14px; padding: 10px 14px; border: 2px solid #A8000B; border-radius: 6px; color: #A8000B; }
+        .void-notice strong { font-size: 15px; text-transform: uppercase; letter-spacing: .1em; }
         .parties { display: flex; gap: 40px; margin-bottom: 24px; }
         .parties h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6B7888; margin-bottom: 4px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
@@ -47,9 +50,19 @@
             <h1>Invoice {{ $invoice->number }}</h1>
             <p class="muted">Period: {{ $invoice->period_start->format('j F Y') }} – {{ $invoice->period_end->format('j F Y') }}</p>
             <p class="muted">Due date: <strong>{{ $invoice->due_date->format('j F Y') }}</strong></p>
-            <p style="margin-top:6px"><span class="badge">{{ $invoice->status->label() }}</span></p>
+            <p style="margin-top:6px"><span class="badge {{ $invoice->isCancelled() ? 'badge-void' : '' }}">{{ $invoice->status->label() }}</span></p>
         </div>
     </div>
+
+    @if ($invoice->isCancelled())
+        <div class="void-notice">
+            <strong>Cancelled — not payable</strong>
+            <p style="margin:4px 0 0">
+                This invoice was cancelled on {{ $invoice->cancelled_at?->format('j F Y') }} and no payment is due against it.
+                Reason: {{ $invoice->cancellation_reason }}
+            </p>
+        </div>
+    @endif
 
     <div class="parties">
         <div>

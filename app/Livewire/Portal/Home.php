@@ -98,6 +98,7 @@ class Home extends Component
 
         $invoices = Invoice::query()
             ->whereHas('lease', fn ($query) => $query->where('tenant_id', $tenant->id))
+            ->where('status', '!=', InvoiceStatus::Cancelled->value)
             ->with('lease.property')
             ->orderByDesc('period_start')
             ->orderByDesc('id')

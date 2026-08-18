@@ -33,6 +33,10 @@ class Invoice extends Model
         'period_end',
         'due_date',
         'status',
+        'cancelled_at',
+        'cancellation_reason',
+        'cancelled_by',
+        'period_key',
         'rent_laari',
         'charges_laari',
         'fine_laari',
@@ -49,6 +53,7 @@ class Invoice extends Model
             'period_start' => 'date',
             'period_end' => 'date',
             'due_date' => 'date',
+            'cancelled_at' => 'datetime',
             'status' => InvoiceStatus::class,
             'rent_laari' => 'integer',
             'charges_laari' => 'integer',
@@ -63,6 +68,29 @@ class Invoice extends Model
         static::deleting(function (): never {
             throw new RuntimeException('Invoices are never deleted; corrections are reversing entries.');
         });
+
+        /*
+         * `period_key` carries the one-live-invoice-per-lease-per-month rule at
+         * the database level. Voiding releases it (NULLs never collide), which
+         * is what frees the month for a corrected invoice. Deriving it here
+         * rather than at the call sites means it can never be forgotten.
+         */
+        static::saving(function (Invoice $invoice): void {
+            $invoice->period_key = $invoice->status === InvoiceStatus::Cancelled
+                ? null
+                : $invoice->lease_id.'-'.$invoice->period_year.'-'.$invoice->period_month;
+        });
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === InvoiceStatus::Cancelled;
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     /** @return BelongsTo<Lease, $this> */
@@ -136,6 +164,12 @@ class Invoice extends Model
 
     public function outstandingTotalLaari(): int
     {
+        // A voided invoice owes nothing, whichever caller asks — the recorded
+        // rent and fine stay on the row as a record of what was raised.
+        if ($this->isCancelled()) {
+            return 0;
+        }
+
         return $this->outstandingPrincipalLaari() + $this->outstandingFineLaari();
     }
 
@@ -151,6 +185,10 @@ class Invoice extends Model
      */
     public function refreshPaymentStatus(CarbonImmutable $asOf): void
     {
+        if ($this->isCancelled()) {
+            return; // a voided invoice never comes back to life
+        }
+
         $paidAnything = (int) $this->payments()->sum('amount_laari') > 0;
 
         $status = match (true) {

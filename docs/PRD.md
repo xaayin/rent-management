@@ -697,7 +697,13 @@ import (§B.2 #37) · email channel INT-EML-01 · proration FR-INV-08 · configu
 FR-PRP-04 · reminder overrides FR-NOT-04 · quiet hours beyond the 09:00 send ·
 property/lease document attachments FR-PRP-05/FR-LSE-07 · data-retention routines (§14.4.41).
 
-Delivered since this appendix was first written: **fine rules as scheduled periods**
+Delivered since this appendix was first written: **invoice cancellation (voiding)** — an
+invoice raised in error is voided rather than deleted, keeping its row and its YYYY/NNN number
+so the sequence has no unexplainable gap (FR-AUD-02 intact), while the charge leaves every
+balance, statement, reminder and report. Permitted only while payments net to zero, with a
+mandatory reason and the actor recorded; the billed month is released so a corrected invoice
+can be raised in its place, and the PDF prints a "Cancelled — not payable" notice ·
+**fine rules as scheduled periods**
 (FR-FIN-09 sharpened: a rule now owns an explicit `[effective_from, effective_to]` window
 instead of running open-ended forever, so the council can fine differently in different
 periods and leave deliberate gaps where no fine accrues at all. `FineRuleScheduler` guarantees

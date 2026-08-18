@@ -30,6 +30,7 @@ class ReportService
         $billed = Invoice::query()
             ->where('period_year', $today->year)
             ->where('period_month', $today->month)
+            ->where('status', '!=', InvoiceStatus::Cancelled->value)   // voided was never billed
             ->selectRaw('COUNT(*) as invoices, COALESCE(SUM(rent_laari + charges_laari), 0) as laari')
             ->first();
 
@@ -138,6 +139,7 @@ class ReportService
     {
         $billed = Invoice::query()
             ->where('period_year', $year)
+            ->where('status', '!=', InvoiceStatus::Cancelled->value)
             ->groupBy('period_month')
             ->selectRaw('period_month, COALESCE(SUM(total_laari), 0) as laari')
             ->pluck('laari', 'period_month');

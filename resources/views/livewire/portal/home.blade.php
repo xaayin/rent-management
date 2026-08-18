@@ -72,6 +72,7 @@
                             \App\Enums\InvoiceStatus::Paid => 'loz-success',
                             \App\Enums\InvoiceStatus::PartlyPaid => 'loz-warning',
                             \App\Enums\InvoiceStatus::Overdue => 'loz-danger',
+                            \App\Enums\InvoiceStatus::Cancelled => 'loz-neutral',
                             default => 'loz-info',
                         } }}">{{ $invoice->status->label() }}</span>
                         <span class="w-24 whitespace-nowrap text-right text-13 tabular-nums {{ in_array($invoice->status, $unsettledStatuses, true) ? 'font-semibold text-ink' : 'text-subtle' }}">
