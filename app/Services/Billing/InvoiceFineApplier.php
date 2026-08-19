@@ -64,6 +64,13 @@ class InvoiceFineApplier
      */
     public function previewFine(Invoice $invoice, CarbonImmutable $asOf): ?FineBreakdown
     {
+        // Fines are a property of the KIND: a CSR invoice still goes Overdue
+        // (it is late, and reminders chase it) but never grows a fine — a
+        // stated rule, not an accident of its zero rent base.
+        if (! $invoice->kind->finable()) {
+            return null;
+        }
+
         $rule = $this->rules->for($invoice);
 
         if ($rule === null) {

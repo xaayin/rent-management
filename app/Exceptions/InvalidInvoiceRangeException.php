@@ -11,6 +11,12 @@ use RuntimeException;
  */
 class InvalidInvoiceRangeException extends RuntimeException
 {
+    /** A reason stated in full by the caller — shown to the user verbatim. */
+    public static function because(string $reason): self
+    {
+        return new self($reason);
+    }
+
     public static function leaseNotActive(): self
     {
         return new self('Only active leases can be invoiced.');

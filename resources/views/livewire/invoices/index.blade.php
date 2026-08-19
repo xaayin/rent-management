@@ -99,6 +99,9 @@
                                 };
                             @endphp
                             <span class="loz {{ $badge }}">{{ $invoice->status->label() }}</span>
+                            @if ($invoice->kind === \App\Enums\InvoiceKind::Csr)
+                                <span class="loz loz-discovery ml-1">CSR</span>
+                            @endif
                         </td>
                         <td class="px-4 py-3">
                             <span class="flex items-center justify-end gap-0.5">
@@ -346,6 +349,37 @@
                     @error('inv_lease_id') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                 </div>
 
+                @php $chosenLease = $activeLeases->firstWhere('id', $inv_lease_id); @endphp
+
+                {{-- The CSR option only exists where the agreement bills CSR as
+                     its own annual document (lease setting). --}}
+                @if ($chosenLease?->billsCsrSeparately())
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" wire:click="$set('inv_kind', 'rent')"
+                            class="chip h-7 px-2.5 text-12 {{ $inv_kind === 'rent' ? 'border-brand-500 text-brand-600' : '' }}">Rent</button>
+                        <button type="button" wire:click="$set('inv_kind', 'csr')"
+                            class="chip h-7 px-2.5 text-12 {{ $inv_kind === 'csr' ? 'border-brand-500 text-brand-600' : '' }}">Annual CSR</button>
+                    </div>
+                @endif
+
+                @if ($inv_kind === 'csr' && $chosenLease?->billsCsrSeparately())
+                    <div>
+                        <label class="fl-req">CSR year</label>
+                        <input type="number" wire:model.live="inv_csr_year" min="2000" max="2100" class="input mt-1 w-32 text-right tabular-nums">
+                        @error('inv_csr_year') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="space-y-1.5 rounded-md border border-line-2 bg-sunken p-3 text-13">
+                        <div class="flex justify-between">
+                            <span class="text-subtle">Annual CSR charge — {{ $chosenLease->csr_type->label() }}</span>
+                            <span class="tabular-nums font-semibold">{{ $chosenLease->csrAnnualAmount()->format() }}</span>
+                        </div>
+                        <p class="pt-1 text-11 text-muted">
+                            Billed in {{ \Carbon\CarbonImmutable::create(2000, $chosenLease->effectiveCsrMonth(), 1)->format('F') }} ·
+                            one live CSR invoice per year · no late fine accrues on CSR invoices.
+                        </p>
+                    </div>
+                @else
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="fl-req">First billing month</label>
@@ -394,6 +428,7 @@
                             <p class="pt-1 text-13 text-danger-fg">{{ $newInvoice['error'] }}</p>
                         @endif
                     </div>
+                @endif
                 @endif
             </div>
             <div class="flex items-center justify-end gap-2 rounded-b-xl border-t border-line-2 bg-sunken px-5 py-3.5">

@@ -697,7 +697,20 @@ import (§B.2 #37) · email channel INT-EML-01 · proration FR-INV-08 · configu
 FR-PRP-04 · reminder overrides FR-NOT-04 · quiet hours beyond the 09:00 send ·
 property/lease document attachments FR-PRP-05/FR-LSE-07 · data-retention routines (§14.4.41).
 
-Delivered since this appendix was first written: **invoice cancellation (voiding)** — an
+Delivered since this appendix was first written: **separate CSR invoicing** (a lease may bill
+its annual CSR charge as its own `csr`-kind invoice instead of a line on the csr-month rent
+invoice — an agreement term, `leases.csr_billing`. The annual document is raised automatically
+by the monthly run in the lease's CSR month, or on demand from the New-invoice modal; one live
+CSR invoice per lease per year, voiding frees the year. A CSR invoice goes Overdue and is
+chased by reminders like any other, but **never accrues a fine** — fine liability is a stated
+property of the invoice kind, sharpening FR-FIN so service charges are exempt by rule) ·
+**arrears follow-up queue** (turns FR-RPT-02's
+arrears *report* into a *worklist* at `/follow-ups`: staff log what was said and what the tenant
+promised, an open promise parks that tenant until the promised date, and a promise the payments
+never covered brings them back at the top of the queue. Kept-vs-broken is derived from the
+payment ledger on every read, never stored, so it cannot be ticked off by anyone who did not
+collect the money — and the council gets the split between arrears secured by a promise and
+arrears nobody has secured) · **invoice cancellation (voiding)** — an
 invoice raised in error is voided rather than deleted, keeping its row and its YYYY/NNN number
 so the sequence has no unexplainable gap (FR-AUD-02 intact), while the charge leaves every
 balance, statement, reminder and report. Permitted only while payments net to zero, with a

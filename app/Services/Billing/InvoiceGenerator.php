@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Billing;
 
 use App\Enums\CsrType;
+use App\Enums\InvoiceKind;
 use App\Enums\InvoiceLineType;
 use App\Enums\InvoiceStatus;
 use App\Enums\LeaseStatus;
@@ -73,6 +74,98 @@ class InvoiceGenerator
     }
 
     /**
+     * The annual CSR invoice for a year (kind = csr): the lease's whole CSR
+     * charge as its own document, raised in the lease's CSR month. Idempotent —
+     * one LIVE CSR invoice per lease per year (the derived period_key), so a
+     * re-run returns the existing document and a voided one frees the year.
+     */
+    public function generateCsr(Lease $lease, int $year): Invoice
+    {
+        $this->assertCsrBillable($lease, $year);
+
+        $month = CarbonImmutable::create($year, $lease->effectiveCsrMonth(), 1);
+
+        $existing = Invoice::query()
+            ->where('lease_id', $lease->id)
+            ->where('kind', InvoiceKind::Csr->value)
+            ->where('period_year', $year)
+            ->where('status', '!=', InvoiceStatus::Cancelled->value)
+            ->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        return DB::transaction(function () use ($lease, $month): Invoice {
+            $amount = $lease->csrAnnualAmount()->laari;
+
+            $invoice = Invoice::create([
+                'number' => $this->numbers->next($month->year),
+                'lease_id' => $lease->id,
+                'kind' => InvoiceKind::Csr->value,
+                'period_year' => $month->year,
+                'period_month' => $month->month,
+                'period_months' => 1,
+                'period_start' => $month->toDateString(),
+                'period_end' => $month->endOfMonth()->toDateString(),
+                // The same council due-date rule as rent — one anchoring policy.
+                'due_date' => $this->dueDates->for($lease, $month)->toDateString(),
+                'status' => InvoiceStatus::Issued->value,
+                'rent_laari' => 0,
+                'charges_laari' => $amount,
+                'fine_laari' => 0,
+                'total_laari' => $amount,
+            ]);
+
+            $invoice->lineItems()->create([
+                'type' => InvoiceLineType::Csr->value,
+                'description' => $this->csrDescription($lease).' — '.$month->format('Y'),
+                'amount_laari' => $amount,
+                'meta' => $this->csrMeta($lease),
+                'position' => 0,
+            ]);
+
+            return $invoice->load('lineItems');
+        });
+    }
+
+    /**
+     * Why a separate CSR invoice may not be raised — thrown with the reason so
+     * the screen can show it verbatim.
+     */
+    public function assertCsrBillable(Lease $lease, int $year): void
+    {
+        if (! $lease->hasCsr()) {
+            throw InvalidInvoiceRangeException::because('This lease has no CSR charge configured.');
+        }
+
+        if (! $lease->billsCsrSeparately()) {
+            throw InvalidInvoiceRangeException::because(
+                'This lease\'s CSR is billed with the rent invoice — switch the lease to separate CSR billing first.'
+            );
+        }
+
+        if ($lease->status !== LeaseStatus::Active) {
+            throw InvalidInvoiceRangeException::leaseNotActive();
+        }
+
+        if ($lease->csrAnnualAmount()->isZero()) {
+            throw InvalidInvoiceRangeException::because(
+                'The CSR amount works out to zero — record the declared revenue first.'
+            );
+        }
+
+        $month = CarbonImmutable::create($year, $lease->effectiveCsrMonth(), 1);
+
+        if ($month->lessThan($lease->effectiveRentStart()->startOfMonth())
+            || ! $month->lessThan(CarbonImmutable::parse($lease->expiry_date))) {
+            throw InvalidInvoiceRangeException::because(
+                "The lease is not billable in {$month->format('F Y')}."
+            );
+        }
+    }
+
+    /**
      * Validate an advance range without creating anything — used by the UI
      * preview so conflicts surface before submitting.
      */
@@ -117,6 +210,9 @@ class InvoiceGenerator
     {
         return Invoice::query()
             ->where('lease_id', $lease->id)
+            // Month coverage is a rent concept: a CSR invoice shares its month
+            // with the rent invoice without either blocking the other.
+            ->where('kind', InvoiceKind::Rent->value)
             // A voided invoice covers nothing — that is what frees the month
             // for the corrected one.
             ->where('status', '!=', InvoiceStatus::Cancelled->value)
@@ -133,6 +229,7 @@ class InvoiceGenerator
             $invoice = Invoice::create([
                 'number' => $this->numbers->next($from->year),
                 'lease_id' => $lease->id,
+                'kind' => InvoiceKind::Rent->value,
                 'period_year' => $from->year,
                 'period_month' => $from->month,
                 'period_months' => $months,
@@ -198,7 +295,8 @@ class InvoiceGenerator
 
         // One CSR charge for every occurrence of the CSR month inside the
         // covered range — a two-year advance with an annual CSR bills it twice.
-        if ($lease->hasCsr()) {
+        // A lease billing CSR separately keeps it off rent documents entirely.
+        if ($lease->hasCsr() && ! $lease->billsCsrSeparately()) {
             for ($offset = 0; $offset < $months; $offset++) {
                 $month = $from->addMonths($offset);
 

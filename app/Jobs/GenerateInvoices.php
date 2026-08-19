@@ -39,6 +39,16 @@ class GenerateInvoices implements ShouldQueue
         Lease::query()->active()->each(function (Lease $lease) use ($generator, $period): void {
             try {
                 $generator->generate($lease, $period);
+
+                // A separate-billing lease gets its annual CSR document raised
+                // automatically when its CSR month comes round. Idempotent —
+                // one live CSR invoice per year — and skipped while the amount
+                // is zero (%-of-revenue with no declared revenue).
+                if ($lease->billsCsrSeparately()
+                    && $lease->effectiveCsrMonth() === $period->month
+                    && ! $lease->csrAnnualAmount()->isZero()) {
+                    $generator->generateCsr($lease, $period->year);
+                }
             } catch (Throwable $e) {
                 Log::error('Invoice generation failed for lease.', [
                     'lease_id' => $lease->id,

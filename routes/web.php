@@ -9,6 +9,7 @@ use App\Http\Controllers\ReceiptPdfController;
 use App\Http\Controllers\ReportExportController;
 use App\Livewire\Approvals\Index as ApprovalsIndex;
 use App\Livewire\Dashboard\Index as DashboardIndex;
+use App\Livewire\FollowUps\Index as FollowUpsIndex;
 use App\Livewire\Invoices\Index as InvoicesIndex;
 use App\Livewire\Leases\Index as LeasesIndex;
 use App\Livewire\Portal\Home as PortalHome;
@@ -89,6 +90,11 @@ Route::middleware(['auth'])->group(function (): void {
 
     // The Finance queue of tenant bank-transfer claims (T3), same permission
     // as recording a payment — confirming a claim records one.
+    // The arrears chasing worklist (R2) — collectors, not readers.
+    Route::get('/follow-ups', FollowUpsIndex::class)
+        ->middleware('can:'.Permission::RecordPayments->value)
+        ->name('follow-ups.index');
+
     Route::get('/transfers', TransfersIndex::class)
         ->middleware('can:'.Permission::RecordPayments->value)
         ->name('transfers.index');

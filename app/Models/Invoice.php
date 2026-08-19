@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\InvoiceKind;
 use App\Enums\InvoiceStatus;
 use App\Services\Billing\FineRuleResolver;
 use App\Support\Money;
@@ -26,6 +27,7 @@ class Invoice extends Model
     protected $fillable = [
         'number',
         'lease_id',
+        'kind',
         'period_year',
         'period_month',
         'period_months',
@@ -44,6 +46,12 @@ class Invoice extends Model
         'total_laari',
     ];
 
+    /** In-memory default mirroring the migration: every invoice is a rent
+     * demand unless the generator says otherwise. */
+    protected $attributes = [
+        'kind' => 'rent',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -55,6 +63,7 @@ class Invoice extends Model
             'due_date' => 'date',
             'cancelled_at' => 'datetime',
             'status' => InvoiceStatus::class,
+            'kind' => InvoiceKind::class,
             'rent_laari' => 'integer',
             'charges_laari' => 'integer',
             'fine_laari' => 'integer',
@@ -76,9 +85,15 @@ class Invoice extends Model
          * rather than at the call sites means it can never be forgotten.
          */
         static::saving(function (Invoice $invoice): void {
-            $invoice->period_key = $invoice->status === InvoiceStatus::Cancelled
-                ? null
-                : $invoice->lease_id.'-'.$invoice->period_year.'-'.$invoice->period_month;
+            // Rent keys stay in their original {lease}-{year}-{month} shape (no
+            // churn on existing rows); a CSR invoice keys on the YEAR alone, so
+            // a lease gets one live CSR document per year and it can share a
+            // month with that month's rent invoice without colliding.
+            $invoice->period_key = match (true) {
+                $invoice->status === InvoiceStatus::Cancelled => null,
+                $invoice->kind === InvoiceKind::Csr => $invoice->lease_id.'-'.$invoice->period_year.'-csr',
+                default => $invoice->lease_id.'-'.$invoice->period_year.'-'.$invoice->period_month,
+            };
         });
     }
 
@@ -206,6 +221,10 @@ class Invoice extends Model
      */
     public function periodLabel(): string
     {
+        if ($this->kind === InvoiceKind::Csr) {
+            return 'CSR '.$this->period_year;
+        }
+
         if ($this->period_months <= 1) {
             return $this->period_start->format('M Y');
         }

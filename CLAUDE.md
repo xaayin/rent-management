@@ -167,6 +167,22 @@ See "Deferred backlog" below for what remains.
   malformed config falls back to `start_day_based`. `due_day` is clamped to the landing month's
   length (30 → 28 Feb). Changing the config affects invoices generated from then on —
   already-issued invoices keep their recorded due date (money never reinterprets itself).
+- **Separate CSR invoicing / invoice kinds**: `invoices.kind` (`InvoiceKind`: `rent` | `csr`)
+  says what a document demands, and **whether late payment fines is a property of the kind**
+  (`finable()`, checked at the top of `InvoiceFineApplier::previewFine()`) — a CSR invoice
+  still goes Overdue and gets chased by reminders but NEVER grows a fine, as a stated rule,
+  not an accident of its zero rent base. Which way a lease bills CSR is an agreement term:
+  `leases.csr_billing` (`CsrBilling`: `with_rent` default | `separate`). A `separate` lease
+  keeps CSR lines off ALL rent documents (monthly + advance ranges + previews) and instead
+  gets one annual `csr`-kind invoice via `InvoiceGenerator::generateCsr($lease, $year)` —
+  raised automatically by the monthly job when the CSR month comes round, or manually from
+  the New-invoice modal ("Annual CSR" toggle, only shown for separate leases). Idempotency
+  rides `period_key`: CSR keys are `{lease}-{year}-csr` (one live CSR document per year;
+  voiding frees the year), rent keys keep their `{lease}-{year}-{month}` shape.
+  `overlapping()` considers only `rent`-kind rows, so a CSR invoice and that month's rent
+  invoice never block each other. Consequence to know: on a `separate` lease a
+  `rent_plus_charges` fine base computes on rent alone — the charge moved off that document.
+  The PDF drops the "late payment attracts a fine" footnote for non-finable kinds.
 - **Invoice cancellation** (`App\Services\Billing\InvoiceCanceller`): an invoice raised in
   error is **voided**, keeping its row and its `YYYY/NNN` number — a hole in a government
   numbering sequence is unexplainable to an auditor. Allowed only while payments net to **zero**
@@ -183,6 +199,19 @@ See "Deferred backlog" below for what remains.
   or route through approvals if the council asks. The PDF prints a "Cancelled — not payable"
   notice. **Adding an InvoiceStatus case breaks exhaustive `match` blocks in blades** — four
   status→lozenge maps exist (invoices/leases/tenants/portal).
+- **Arrears follow-ups (R2)** (`App\Services\Collections\ArrearsFollowUpService`, `/follow-ups`):
+  the chasing worklist. An `ArrearsContact` records what was said and what was promised
+  (`promised_on` + optional `promised_amount_laari`, plus an `outstanding_at_contact_laari`
+  snapshot so old history still reads right). **Whether a promise was KEPT is never stored** —
+  `outcomeFor()` derives it from net payments since the contact date, so it cannot go stale and
+  nobody can tick off money they did not collect; reversals are negative rows, so a bounced
+  cheque un-keeps a promise on its own. `FollowUpState` (Broken → NeverContacted → Stale →
+  Recent → Promised) IS the queue order — `priority()`/`needsAttention()` live on the enum. An
+  open promise parks a tenant off the worklist until their date, then returns them at the top
+  as Broken. `summary()` gives the council the promised-vs-unsecured split; the nav badge is
+  `needsAttentionCount()`. Stale window is config (`collections.follow_up_stale_days`, 14).
+  Gated on `record payments` — collectors, not readers (Reports' arrears page stays
+  `view reports`).
 - **Bank-transfer claims (T3)** (`App\Services\Portal\TransferClaimService`): a tenant who
   paid off-island submits amount + date + bank reference from the portal's "Pay by transfer"
   tab (`transfer_claims`, one pending per tenant); Finance/Supervisor confirm or reject it from
@@ -279,9 +308,11 @@ The visual source of truth is `design/ui-prototype.html` (ADS/Jira idiom) and
 ## Project structure
 
 - Services: `app/Services/Billing/` (InvoiceGenerator, InvoiceNumberGenerator, FineCalculator,
-  FineBreakdown, InvoiceFineApplier, PaymentRecorder, ReceiptNumberGenerator), `Reminders/`,
-  `Reporting/ReportService`, `Approvals/ApprovalService`, `Import/`, `Sms/`.
-- Livewire pages: `app/Livewire/{Dashboard,Leases,Invoices,Tenants,Properties,Reports,Approvals,Settings}`.
+  FineBreakdown, InvoiceFineApplier, InvoiceCanceller, FineRuleScheduler, FineRuleResolver,
+  DueDateCalculator, PaymentRecorder, ReceiptNumberGenerator), `Reminders/`,
+  `Reporting/ReportService`, `Approvals/ApprovalService`,
+  `Collections/ArrearsFollowUpService`, `Import/`, `Sms/`.
+- Livewire pages: `app/Livewire/{Dashboard,Leases,Invoices,Tenants,Properties,Reports,Approvals,FollowUps,Settings}`.
   Shared form logic in `app/Livewire/Concerns/InteractsWithPayments` and
   `CollectsTenantPayments` (the latter is a trait, not a page, because §6.1 keeps a Finance
   Officer *out of* `/tenants` — they reach bulk collection from the Invoices payment

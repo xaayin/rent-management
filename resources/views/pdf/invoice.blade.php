@@ -125,7 +125,9 @@
 
     <div class="footer">
         <p><strong>Payment account:</strong> {{ config('billing.payment_account') }}</p>
-        <p>Please quote invoice number {{ $invoice->number }} when paying. Late payment attracts a fine per the lease agreement.</p>
+        {{-- A CSR invoice never accrues a fine (kind property) — the printed
+             document must not threaten one. --}}
+        <p>Please quote invoice number {{ $invoice->number }} when paying.{{ $invoice->kind->finable() ? ' Late payment attracts a fine per the lease agreement.' : '' }}</p>
     </div>
 </body>
 </html>

@@ -74,6 +74,12 @@ class Tenant extends Model implements AuthenticatableContract
         return $this->hasMany(Lease::class);
     }
 
+    /** @return HasMany<ArrearsContact, $this> */
+    public function arrearsContacts(): HasMany
+    {
+        return $this->hasMany(ArrearsContact::class);
+    }
+
     /** @return HasMany<TransferClaim, $this> */
     public function transferClaims(): HasMany
     {

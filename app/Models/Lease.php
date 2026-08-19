@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\BillingCycle;
+use App\Enums\CsrBilling;
 use App\Enums\CsrType;
 use App\Enums\LeaseStatus;
 use App\Enums\RentBasis;
@@ -47,6 +48,7 @@ class Lease extends Model
         'csr_percent_bps',
         'csr_declared_revenue_laari',
         'csr_month',
+        'csr_billing',
         'security_deposit_laari',
         'status',
         'terminated_on',
@@ -63,6 +65,7 @@ class Lease extends Model
         'billing_cycle' => 'monthly',
         'due_day' => 10,
         'csr_type' => 'none',
+        'csr_billing' => 'with_rent',
         'status' => 'draft',
     ];
 
@@ -88,6 +91,7 @@ class Lease extends Model
             'rent_basis' => RentBasis::class,
             'billing_cycle' => BillingCycle::class,
             'csr_type' => CsrType::class,
+            'csr_billing' => CsrBilling::class,
             'status' => LeaseStatus::class,
         ];
     }
@@ -172,6 +176,12 @@ class Lease extends Model
     public function hasCsr(): bool
     {
         return $this->csr_type !== CsrType::None;
+    }
+
+    /** Is this lease's CSR raised as its own annual invoice? */
+    public function billsCsrSeparately(): bool
+    {
+        return $this->hasCsr() && $this->csr_billing === CsrBilling::Separate;
     }
 
     /**

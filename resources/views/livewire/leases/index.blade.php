@@ -147,6 +147,13 @@
                                 :options="collect(range(1, 12))->mapWithKeys(fn ($m) => [$m => date('F', mktime(0, 0, 0, $m, 1))])" />
                             @error('csr_month') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
                         </div>
+                        <div>
+                            <label class="fl">CSR invoicing</label>
+                            <x-select wire:model="csr_billing" class="mt-1"
+                                :options="collect(\App\Enums\CsrBilling::cases())->mapWithKeys(fn ($b) => [$b->value => $b->label()])" />
+                            @error('csr_billing') <p class="mt-1 text-13 text-danger-fg">{{ $message }}</p> @enderror
+                            <p class="mt-1 text-12 text-muted">Separate raises an annual CSR invoice — no late fine accrues on it.</p>
+                        </div>
                     @endif
                 </div>
 

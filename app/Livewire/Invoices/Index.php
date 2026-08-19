@@ -77,6 +77,11 @@ class Index extends Component
 
     public int $inv_months = 1;
 
+    /** rent (monthly / advance range) | csr (annual CSR document). */
+    public string $inv_kind = 'rent';
+
+    public int $inv_csr_year = 0;
+
     public function mount(): void
     {
         $this->authorize('viewAny', Invoice::class);
@@ -92,9 +97,10 @@ class Index extends Component
     {
         $this->authorize('generate', Invoice::class);
 
-        $this->reset('inv_lease_id', 'inv_start', 'inv_months');
+        $this->reset('inv_lease_id', 'inv_start', 'inv_months', 'inv_kind', 'inv_csr_year');
         $this->resetValidation();
         $this->creatingInvoice = true;
+        $this->inv_csr_year = (int) today()->format('Y');
 
         if ($leaseId !== null && ($lease = Lease::find($leaseId)) !== null) {
             $this->inv_lease_id = $lease->id;
@@ -105,7 +111,7 @@ class Index extends Component
     public function closeCreateInvoice(): void
     {
         $this->creatingInvoice = false;
-        $this->reset('inv_lease_id', 'inv_start', 'inv_months');
+        $this->reset('inv_lease_id', 'inv_start', 'inv_months', 'inv_kind', 'inv_csr_year');
         $this->resetValidation();
     }
 
@@ -164,6 +170,12 @@ class Index extends Component
     {
         $this->authorize('generate', Invoice::class);
 
+        if ($this->inv_kind === 'csr') {
+            $this->createCsrInvoice();
+
+            return;
+        }
+
         $validated = $this->validate([
             'inv_lease_id' => ['required', 'integer', 'exists:leases,id'],
             'inv_start' => ['required', 'date_format:Y-m'],
@@ -188,6 +200,30 @@ class Index extends Component
 
         $this->closeCreateInvoice();
         session()->flash('status', "Invoice {$invoice->number} created · {$invoice->total()->format()} covering {$invoice->periodLabel()}.");
+    }
+
+    /** The annual CSR document (kind = csr) for the chosen year. */
+    private function createCsrInvoice(): void
+    {
+        $validated = $this->validate([
+            'inv_lease_id' => ['required', 'integer', 'exists:leases,id'],
+            'inv_csr_year' => ['required', 'integer', 'min:2000', 'max:2100'],
+        ], [
+            'inv_lease_id.required' => 'Pick the lease to invoice.',
+        ]);
+
+        $lease = Lease::findOrFail($validated['inv_lease_id']);
+
+        try {
+            $invoice = app(InvoiceGenerator::class)->generateCsr($lease, (int) $validated['inv_csr_year']);
+        } catch (InvalidInvoiceRangeException $e) {
+            $this->addError('inv_csr_year', $e->getMessage());
+
+            return;
+        }
+
+        $this->closeCreateInvoice();
+        session()->flash('status', "CSR invoice {$invoice->number} created · {$invoice->total()->format()} for {$invoice->period_year}.");
     }
 
     /**
@@ -243,7 +279,9 @@ class Index extends Component
         $rentLaari = $lease->monthlyRent()->laari * $months;
         $csrOccurrences = 0;
 
-        if ($lease->hasCsr()) {
+        // Mirrors the generator: a separate-billing lease keeps CSR off rent
+        // documents, so the preview must not promise the charge either.
+        if ($lease->hasCsr() && ! $lease->billsCsrSeparately()) {
             for ($offset = 0; $offset < $months; $offset++) {
                 if ($from->addMonths($offset)->month === $lease->effectiveCsrMonth()) {
                     $csrOccurrences++;

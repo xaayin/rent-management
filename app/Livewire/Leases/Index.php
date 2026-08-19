@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Leases;
 
 use App\Enums\ApprovalAction;
+use App\Enums\CsrBilling;
 use App\Enums\CsrType;
 use App\Enums\FineBase;
 use App\Enums\FineMethod;
@@ -110,6 +111,9 @@ class Index extends Component
     public string $csr_declared_revenue = '';
 
     public ?int $csr_month = null;
+
+    /** with_rent | separate — how the annual CSR is invoiced (agreement term). */
+    public string $csr_billing = 'with_rent';
 
     public string $status = 'draft';
 
@@ -252,6 +256,7 @@ class Index extends Component
         $this->csr_percent = $lease->csr_percent_bps !== null ? (string) ($lease->csr_percent_bps / 100) : '';
         $this->csr_declared_revenue = $lease->csr_declared_revenue_laari !== null ? Money::fromLaari($lease->csr_declared_revenue_laari)->toRufiyaa() : '';
         $this->csr_month = $lease->csr_month;
+        $this->csr_billing = $lease->csr_billing->value;
         $this->status = $lease->status->value;
         $this->showForm = true;
     }
@@ -294,6 +299,7 @@ class Index extends Component
             'csr_percent' => [Rule::requiredIf($this->csr_type === CsrType::PercentOfRevenue->value), 'nullable', 'numeric', 'min:0'],
             'csr_declared_revenue' => [Rule::requiredIf($this->csr_type === CsrType::PercentOfRevenue->value), 'nullable', 'regex:/^\d+(\.\d{1,2})?$/'],
             'csr_month' => [Rule::requiredIf($this->csr_type !== CsrType::None->value), 'nullable', 'integer', 'min:1', 'max:12'],
+            'csr_billing' => ['required', Rule::enum(CsrBilling::class)],
             'status' => ['required', Rule::in([LeaseStatus::Draft->value, LeaseStatus::Active->value])],
         ]);
 
@@ -330,6 +336,7 @@ class Index extends Component
             'csr_declared_revenue_laari' => $this->csr_type === CsrType::PercentOfRevenue->value
                 ? Money::fromRufiyaa($validated['csr_declared_revenue'])->laari : null,
             'csr_month' => $this->csr_type !== CsrType::None->value ? $validated['csr_month'] : null,
+            'csr_billing' => $validated['csr_billing'],
         ];
 
         if ($lease) {
@@ -970,7 +977,7 @@ class Index extends Component
             'agreement_date', 'start_date', 'rent_start_date', 'duration_years',
             'expiry_date', 'rent_basis', 'rate_laari', 'area_sqft', 'flat_amount',
             'grace_months', 'due_day', 'csr_type', 'csr_amount', 'csr_percent',
-            'csr_declared_revenue', 'csr_month',
+            'csr_declared_revenue', 'csr_month', 'csr_billing',
         );
         $this->status = 'draft';
         $this->resetValidation();
