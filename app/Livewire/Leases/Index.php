@@ -161,6 +161,20 @@ class Index extends Component
         // The top-bar Create menu deep-links here (design PRD §6.6).
         if (request()->boolean('create')) {
             $this->create();
+
+            return;
+        }
+
+        // The lease page deep-links back for the two tasks that still live on
+        // this screen: the edit form and the fine-schedule manager.
+        if (($editId = (int) request()->query('edit')) > 0) {
+            $this->edit($editId);
+
+            return;
+        }
+
+        if (($fineId = (int) request()->query('fines')) > 0) {
+            $this->configureFine($fineId);
         }
     }
 

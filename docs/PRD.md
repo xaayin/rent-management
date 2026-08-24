@@ -697,7 +697,14 @@ import (§B.2 #37) · email channel INT-EML-01 · proration FR-INV-08 · configu
 FR-PRP-04 · reminder overrides FR-NOT-04 · quiet hours beyond the 09:00 send ·
 property/lease document attachments FR-PRP-05/FR-LSE-07 · data-retention routines (§14.4.41).
 
-Delivered since this appendix was first written: **separate CSR invoicing** (a lease may bill
+Delivered since this appendix was first written: **the lease workspace as a full page**
+(§10.2's lease detail moves from a 560px slide-over to `/leases/{id}` — a bookmarkable,
+linkable URL leading with a money band that states what the lease owes *today*, with the fine
+recomputed live rather than read from the last nightly refresh, so the figure staff quote is
+the figure a payment settles. Outstanding invoices, full invoice history and payments/receipts
+sit stacked in the main column with terms, fine rule, collection state and activity in a rail;
+the list slide-over remains as a quick peek with an "Open lease" link) ·
+**separate CSR invoicing** (a lease may bill
 its annual CSR charge as its own `csr`-kind invoice instead of a line on the csr-month rent
 invoice — an agreement term, `leases.csr_billing`. The annual document is raised automatically
 by the monthly run in the lease's CSR month, or on demand from the New-invoice modal; one live

@@ -12,6 +12,7 @@ use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Livewire\FollowUps\Index as FollowUpsIndex;
 use App\Livewire\Invoices\Index as InvoicesIndex;
 use App\Livewire\Leases\Index as LeasesIndex;
+use App\Livewire\Leases\Show as LeaseShow;
 use App\Livewire\Portal\Home as PortalHome;
 use App\Livewire\Portal\Login as PortalLogin;
 use App\Livewire\Properties\Index as PropertiesIndex;
@@ -65,6 +66,12 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('/leases', LeasesIndex::class)
         ->middleware('can:'.Permission::ManageLeases->value)
         ->name('leases.index');
+
+    // The lease workspace gets its own URL — bookmarkable, linkable, and
+    // survivable across a browser tab (design PRD §4.2).
+    Route::get('/leases/{lease}', LeaseShow::class)
+        ->middleware('can:'.Permission::ManageLeases->value)
+        ->name('leases.show');
 
     Route::get('/invoices', InvoicesIndex::class)
         ->middleware('can:'.Permission::IssueInvoices->value)

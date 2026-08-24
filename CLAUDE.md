@@ -286,6 +286,28 @@ The visual source of truth is `design/ui-prototype.html` (ADS/Jira idiom) and
   name + id tiebreak). Page size 10. Filter-aware empty states.
 - **Create/edit forms are modals** (`<x-modal>`, `:wide="true"` for long forms like the
   lease). The top-bar **Create menu** deep-links with `?create=1` (handled in `mount()`).
+- **Lease workspace is a PAGE, the slide-over is a peek** (`/leases/{id}`,
+  `App\Livewire\Leases\Show`): a lease is the richest entity here and needs a URL — one that
+  survives a browser tab during a phone call and can be linked to. Layout is the standard
+  detail-page shape: identity header + actions → **money band** ("Due today", green when
+  settled) → main column (outstanding invoices with per-row Pay, invoice history with
+  "Show more", payments & receipts) → reference rail (terms, fine rule, R2 collection state,
+  tenant, activity). Invoices and payments are STACKED, never tabbed — reconciling a dispute
+  needs both visible at once. The list peek keeps row-click and carries an "Open lease" link;
+  tasks that still live on the list (edit form, fine schedule) are deep-linked back via
+  `?edit=` / `?fines=` handled in `Leases\Index::mount()`, and the New-invoice modal via
+  `?createFor=`.
+- **`LeaseAccountSummary`** (`app/Services/Reporting`) is the ONE place "what is owed right
+  now" is computed: it recomputes each fine live through `InvoiceFineApplier` rather than
+  reading `invoices.fine_laari`, which is only as fresh as the last nightly refresh. Staff
+  quote this on the phone, so it must equal what a payment taken today would settle.
+  `forTenant()` sums the same engine across a tenant's leases — use it for any tenant balance
+  shown ALONGSIDE a lease figure, or the rail ends up displaying a tenant-wide balance smaller
+  than the single lease inside it (a test pins that invariant). `Tenant::outstandingBalance()`
+  keeps its stored-fine semantics for SMS/portal/statements.
+- **Record payment is one shared surface**: `resources/views/livewire/partials/payment-modal.blade.php`,
+  backed by `InteractsWithPayments`, included by both the leases list and the lease page with
+  an `$unpaidChoices` map. Don't fork it.
 - **Slide-overs (560px) are the detail/action surface** — three exist; follow their pattern
   (backdrop + Esc via a `closeOverlays()` that unwinds overlays top-first):
   - **Leases**: row click → amount-due banner, field grid, fine-rule card (show the maths),
@@ -312,7 +334,7 @@ The visual source of truth is `design/ui-prototype.html` (ADS/Jira idiom) and
   DueDateCalculator, PaymentRecorder, ReceiptNumberGenerator), `Reminders/`,
   `Reporting/ReportService`, `Approvals/ApprovalService`,
   `Collections/ArrearsFollowUpService`, `Import/`, `Sms/`.
-- Livewire pages: `app/Livewire/{Dashboard,Leases,Invoices,Tenants,Properties,Reports,Approvals,FollowUps,Settings}`.
+- Livewire pages: `app/Livewire/{Dashboard,Leases(Index+Show),Invoices,Tenants,Properties,Reports,Approvals,FollowUps,Settings}`.
   Shared form logic in `app/Livewire/Concerns/InteractsWithPayments` and
   `CollectsTenantPayments` (the latter is a trait, not a page, because §6.1 keeps a Finance
   Officer *out of* `/tenants` — they reach bulk collection from the Invoices payment
